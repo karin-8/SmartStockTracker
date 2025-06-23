@@ -306,7 +306,9 @@ export class MemStorage implements IStorage {
     const orderRecord: Order = {
       ...order,
       id,
-      orderDate: new Date()
+      status: order.status || "pending",
+      orderDate: new Date(),
+      expectedDeliveryDate: order.expectedDeliveryDate || null
     };
     this.orders.set(id, orderRecord);
     return orderRecord;

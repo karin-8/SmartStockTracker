@@ -100,7 +100,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new order
   app.post("/api/orders", async (req, res) => {
     try {
-      const data = insertOrderSchema.parse(req.body);
+      // Parse and convert expectedDeliveryDate string to Date
+      const requestData = { ...req.body };
+      if (requestData.expectedDeliveryDate && typeof requestData.expectedDeliveryDate === 'string') {
+        requestData.expectedDeliveryDate = new Date(requestData.expectedDeliveryDate);
+      }
+      
+      const data = insertOrderSchema.parse(requestData);
       const order = await storage.createOrder(data);
       res.status(201).json(order);
     } catch (error) {

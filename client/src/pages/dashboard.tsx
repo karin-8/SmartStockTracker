@@ -82,25 +82,6 @@ export default function Dashboard() {
 
         {/* 7-Day Forecast Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-8">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900">7-Day Stock Forecast</h3>
-                <p className="text-sm text-gray-600 mt-1">Predicted stock status for the next week</p>
-              </div>
-              <div className="flex items-center space-x-2 mt-4 sm:mt-0">
-                <Button variant="outline" size="sm">
-                  <Filter className="w-4 h-4 mr-1" />
-                  Filter
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Download className="w-4 h-4 mr-1" />
-                  Export
-                </Button>
-              </div>
-            </div>
-          </div>
-
           <ForecastTable inventory={inventory} isLoading={isLoading} />
         </div>
 

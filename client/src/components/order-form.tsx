@@ -25,7 +25,12 @@ export function OrderForm({ inventory }: OrderFormProps) {
 
   const createOrderMutation = useMutation({
     mutationFn: async (order: InsertOrder) => {
-      const response = await apiRequest("POST", "/api/orders", order);
+      // Convert Date objects to ISO strings for JSON serialization
+      const orderData = {
+        ...order,
+        expectedDeliveryDate: order.expectedDeliveryDate?.toISOString() || null
+      };
+      const response = await apiRequest("POST", "/api/orders", orderData);
       return response.json();
     },
     onSuccess: () => {
