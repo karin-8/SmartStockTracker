@@ -136,13 +136,13 @@ export class MemStorage implements IStorage {
       };
       this.inventoryItems.set(id, inventoryItem);
       
-      // Generate demand history for past 30 days
+      // Generate demand history for past 84 days (12 weeks)
       const demands: DemandHistory[] = [];
-      for (let i = 30; i > 0; i--) {
+      for (let i = 84; i > 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         
-        // Generate realistic demand based on item type
+        // Generate realistic daily demand based on item type
         let baseDemand = 5;
         if (item.name.includes("USB-C")) baseDemand = 12;
         else if (item.name.includes("Headphones")) baseDemand = 8;
@@ -161,47 +161,85 @@ export class MemStorage implements IStorage {
     });
   }
 
-  private calculateMovingAverage(demands: DemandHistory[], days: number = 7): number {
-    const recentDemands = demands.slice(-days);
-    const total = recentDemands.reduce((sum, d) => sum + d.quantity, 0);
-    return total / days;
+  private calculateWeeklyDemand(demands: DemandHistory[]): number {
+    // Group demands by week and calculate average weekly demand
+    const weeklyTotals: number[] = [];
+    const now = new Date();
+    
+    for (let weekOffset = 0; weekOffset < 12; weekOffset++) {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - (weekOffset * 7) - 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      
+      const weekDemands = demands.filter(d => {
+        const demandDate = new Date(d.date);
+        return demandDate >= weekStart && demandDate <= weekEnd;
+      });
+      
+      const weekTotal = weekDemands.reduce((sum, d) => sum + d.quantity, 0);
+      weeklyTotals.push(weekTotal);
+    }
+    
+    return weeklyTotals.reduce((sum, total) => sum + total, 0) / weeklyTotals.length;
   }
 
-  private calculateDemandVariability(demands: DemandHistory[], days: number = 14): number {
-    const recentDemands = demands.slice(-days);
-    const avg = this.calculateMovingAverage(demands, days);
-    const variance = recentDemands.reduce((sum, d) => sum + Math.pow(d.quantity - avg, 2), 0) / days;
+  private calculateDemandVariability(demands: DemandHistory[]): number {
+    // Calculate variability based on weekly demand patterns
+    const weeklyTotals: number[] = [];
+    const now = new Date();
+    
+    for (let weekOffset = 0; weekOffset < 12; weekOffset++) {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - (weekOffset * 7) - 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      
+      const weekDemands = demands.filter(d => {
+        const demandDate = new Date(d.date);
+        return demandDate >= weekStart && demandDate <= weekEnd;
+      });
+      
+      const weekTotal = weekDemands.reduce((sum, d) => sum + d.quantity, 0);
+      weeklyTotals.push(weekTotal);
+    }
+    
+    const avg = weeklyTotals.reduce((sum, total) => sum + total, 0) / weeklyTotals.length;
+    const variance = weeklyTotals.reduce((sum, total) => sum + Math.pow(total - avg, 2), 0) / weeklyTotals.length;
     return Math.sqrt(variance);
   }
 
   private generateForecast(item: InventoryItem, demands: DemandHistory[]): number[] {
-    const dailyDemand = this.calculateMovingAverage(demands);
+    const weeklyDemand = this.calculateWeeklyDemand(demands);
     const variability = this.calculateDemandVariability(demands);
     
     const forecast = [];
-    for (let i = 0; i < 7; i++) {
-      // Simple linear trend with some randomness
+    for (let i = 0; i < 12; i++) {
+      // Simple linear trend with some randomness for 12 weeks
       const trendFactor = 1 + (Math.random() - 0.5) * 0.1;
       const variabilityFactor = Math.random() * variability;
-      forecast.push(Math.max(0, Math.floor(dailyDemand * trendFactor + variabilityFactor)));
+      forecast.push(Math.max(0, Math.floor(weeklyDemand * trendFactor + variabilityFactor)));
     }
     
     return forecast;
   }
 
   private generateStockStatus(item: InventoryItem, forecast: number[]): Array<{
-    day: number;
-    date: string;
+    week: number;
+    weekStartDate: string;
+    weekEndDate: string;
     status: "enough" | "low" | "order";
     projectedStock: number;
   }> {
     const status = [];
     let projectedStock = item.currentStock;
     
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 12; i++) {
       projectedStock -= forecast[i];
-      const date = new Date();
-      date.setDate(date.getDate() + i + 1);
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() + (i * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
       
       let statusValue: "enough" | "low" | "order";
       if (projectedStock <= 0) {
@@ -215,8 +253,9 @@ export class MemStorage implements IStorage {
       }
       
       status.push({
-        day: i + 1,
-        date: date.toISOString().split('T')[0],
+        week: i + 1,
+        weekStartDate: weekStart.toISOString().split('T')[0],
+        weekEndDate: weekEnd.toISOString().split('T')[0],
         status: statusValue,
         projectedStock: Math.max(0, projectedStock)
       });
@@ -225,16 +264,16 @@ export class MemStorage implements IStorage {
     return status;
   }
 
-  private generateAIInsights(item: InventoryItem, stockStatus: any[], dailyDemand: number): string[] {
+  private generateAIInsights(item: InventoryItem, stockStatus: any[], weeklyDemand: number): string[] {
     const insights = [];
     
-    const criticalDays = stockStatus.filter(s => s.status === "order").length;
-    if (criticalDays > 0) {
-      insights.push(`Will be out of stock in ${stockStatus.findIndex(s => s.status === "order") + 1} days. Immediate action required.`);
+    const criticalWeeks = stockStatus.filter(s => s.status === "order").length;
+    if (criticalWeeks > 0) {
+      insights.push(`Will be out of stock in ${stockStatus.findIndex(s => s.status === "order") + 1} weeks. Immediate action required.`);
     }
     
-    if (dailyDemand > 10) {
-      insights.push(`High demand detected (${dailyDemand.toFixed(1)} units/day). Consider increasing EOQ.`);
+    if (weeklyDemand > 50) {
+      insights.push(`High demand detected (${weeklyDemand.toFixed(1)} units/week). Consider increasing EOQ.`);
     }
     
     if (item.currentStock > item.economicOrderQuantity * 2) {
@@ -359,16 +398,16 @@ export class MemStorage implements IStorage {
     
     return items.map(item => {
       const demands = this.demandHistory.get(item.id) || [];
-      const dailyDemand = this.calculateMovingAverage(demands);
+      const weeklyDemand = this.calculateWeeklyDemand(demands);
       const demandVariability = this.calculateDemandVariability(demands);
       const forecast = this.generateForecast(item, demands);
       const stockStatus = this.generateStockStatus(item, forecast);
-      const aiInsights = this.generateAIInsights(item, stockStatus, dailyDemand);
+      const aiInsights = this.generateAIInsights(item, stockStatus, weeklyDemand);
       
       return {
         ...item,
         forecast,
-        dailyDemand,
+        weeklyDemand,
         demandVariability,
         stockStatus,
         aiInsights

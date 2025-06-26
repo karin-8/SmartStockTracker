@@ -60,11 +60,12 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 // Extended types for frontend calculations
 export type InventoryItemWithForecast = InventoryItem & {
   forecast: number[];
-  dailyDemand: number;
+  weeklyDemand: number;
   demandVariability: number;
   stockStatus: Array<{
-    day: number;
-    date: string;
+    week: number;
+    weekStartDate: string;
+    weekEndDate: string;
     status: "enough" | "low" | "order";
     projectedStock: number;
   }>;

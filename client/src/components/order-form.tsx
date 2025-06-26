@@ -95,12 +95,12 @@ export function OrderForm({ inventory }: OrderFormProps) {
   const getAIRecommendation = () => {
     if (!selectedItem) return "";
     
-    const daysUntilStockout = selectedItem.stockStatus.findIndex(s => s.status === "order");
-    if (daysUntilStockout >= 0) {
+    const weeksUntilStockout = selectedItem.stockStatus.findIndex(s => s.status === "order");
+    if (weeksUntilStockout >= 0) {
       return `Based on current trends, order ${selectedItem.economicOrderQuantity} units now. Expected delivery in ${selectedItem.leadTimeDays} days will prevent stockout.`;
     }
     
-    return `Current stock levels are adequate. Next order recommended in ${Math.floor(selectedItem.currentStock / selectedItem.dailyDemand)} days.`;
+    return `Current stock levels are adequate. Next order recommended in ${Math.floor(selectedItem.currentStock / selectedItem.weeklyDemand)} weeks.`;
   };
 
   return (

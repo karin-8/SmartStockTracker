@@ -17,10 +17,10 @@ export function AIInsights({ inventory, metrics }: AIInsightsProps) {
     );
     
     if (criticalItem) {
-      const daysUntilStockout = criticalItem.stockStatus.findIndex(s => s.status === "order") + 1;
+      const weeksUntilStockout = criticalItem.stockStatus.findIndex(s => s.status === "order") + 1;
       return {
         item: criticalItem,
-        daysUntilStockout
+        weeksUntilStockout
       };
     }
     
@@ -30,11 +30,11 @@ export function AIInsights({ inventory, metrics }: AIInsightsProps) {
   const getTrendInsight = () => {
     if (!inventory) return null;
     
-    const highDemandItem = inventory.find(item => item.dailyDemand > 10);
+    const highDemandItem = inventory.find(item => item.weeklyDemand > 70);
     if (highDemandItem) {
       return {
         item: highDemandItem,
-        demandIncrease: Math.floor((highDemandItem.dailyDemand - 8) / 8 * 100)
+        demandIncrease: Math.floor((highDemandItem.weeklyDemand - 56) / 56 * 100)
       };
     }
     
@@ -79,7 +79,7 @@ export function AIInsights({ inventory, metrics }: AIInsightsProps) {
               <div>
                 <h4 className="text-sm font-medium text-red-600">Critical Stock Alert</h4>
                 <p className="text-sm text-red-700 mt-1">
-                  {criticalAlert.item.name} will be out of stock in {criticalAlert.daysUntilStockout} days. 
+                  {criticalAlert.item.name} will be out of stock in {criticalAlert.weeksUntilStockout} weeks. 
                   Immediate action required to avoid stockout.
                 </p>
               </div>

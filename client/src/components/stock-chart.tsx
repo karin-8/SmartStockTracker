@@ -12,7 +12,7 @@ export function StockChart({ inventory }: StockChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<any>(null);
   const [selectedItemId, setSelectedItemId] = useState<string>("");
-  const [timeRange, setTimeRange] = useState<"7D" | "30D" | "90D">("30D");
+  const [timeRange, setTimeRange] = useState<"12W" | "24W" | "52W">("24W");
 
   const selectedItem = inventory?.find(item => item.id.toString() === selectedItemId);
 
@@ -39,31 +39,31 @@ export function StockChart({ inventory }: StockChartProps) {
       if (!ctx) return;
 
       // Generate data based on time range
-      const getDaysCount = () => {
+      const getWeeksCount = () => {
         switch (timeRange) {
-          case "7D": return 7;
-          case "30D": return 30;
-          case "90D": return 90;
-          default: return 30;
+          case "12W": return 12;
+          case "24W": return 24;
+          case "52W": return 52;
+          default: return 24;
         }
       };
 
-      const daysCount = getDaysCount();
+      const weeksCount = getWeeksCount();
       const labels = [];
       const stockData = [];
       const ropData = [];
       const safetyStockData = [];
       const forecastData = [];
 
-      // Generate historical data (past days)
-      for (let i = -daysCount + 7; i <= 0; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() + i);
-        labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      // Generate historical data (past weeks)
+      for (let i = -weeksCount + 12; i <= 0; i++) {
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() + (i * 7));
+        labels.push(weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
         
         // Simulate historical stock level with some variance
-        const baseStock = selectedItem.currentStock + (Math.abs(i) * selectedItem.dailyDemand);
-        const variance = Math.random() * 10 - 5;
+        const baseStock = selectedItem.currentStock + (Math.abs(i) * selectedItem.weeklyDemand);
+        const variance = Math.random() * 20 - 10;
         stockData.push(Math.max(0, baseStock + variance));
         
         ropData.push(selectedItem.reorderPoint);
@@ -71,11 +71,11 @@ export function StockChart({ inventory }: StockChartProps) {
         forecastData.push(null);
       }
 
-      // Add forecast data (next 7 days)
-      for (let i = 1; i <= 7; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() + i);
-        labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      // Add forecast data (next 12 weeks)
+      for (let i = 1; i <= 12; i++) {
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() + (i * 7));
+        labels.push(weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
         
         stockData.push(null);
         ropData.push(selectedItem.reorderPoint);
@@ -195,7 +195,7 @@ export function StockChart({ inventory }: StockChartProps) {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
           <div>
             <CardTitle className="text-xl font-semibold text-gray-900">Stock Level Trends</CardTitle>
-            <p className="text-sm text-gray-600 mt-1">Historical and projected stock levels with ROP indicators</p>
+            <p className="text-sm text-gray-600 mt-1">Historical and projected weekly stock levels with ROP indicators</p>
           </div>
           <div className="flex items-center space-x-2 mt-4 sm:mt-0">
             <Select value={selectedItemId} onValueChange={setSelectedItemId}>
@@ -212,25 +212,25 @@ export function StockChart({ inventory }: StockChartProps) {
             </Select>
             <div className="flex space-x-1">
               <Button
-                variant={timeRange === "7D" ? "default" : "outline"}
+                variant={timeRange === "12W" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setTimeRange("7D")}
+                onClick={() => setTimeRange("12W")}
               >
-                7D
+                12W
               </Button>
               <Button
-                variant={timeRange === "30D" ? "default" : "outline"}
+                variant={timeRange === "24W" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setTimeRange("30D")}
+                onClick={() => setTimeRange("24W")}
               >
-                30D
+                24W
               </Button>
               <Button
-                variant={timeRange === "90D" ? "default" : "outline"}
+                variant={timeRange === "52W" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setTimeRange("90D")}
+                onClick={() => setTimeRange("52W")}
               >
-                90D
+                52W
               </Button>
             </div>
           </div>

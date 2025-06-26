@@ -48,7 +48,7 @@ export async function exportOrderToPDF(item: InventoryItemWithForecast, quantity
       `Reorder Point: ${item.reorderPoint} units`,
       `Safety Stock: ${item.safetyStock} units`,
       `Economic Order Quantity: ${item.economicOrderQuantity} units`,
-      `Daily Demand: ${item.dailyDemand.toFixed(1)} units`,
+      `Weekly Demand: ${item.weeklyDemand.toFixed(1)} units`,
       '',
       'JUSTIFICATION:',
       item.aiInsights.length > 0 ? item.aiInsights[0] : 'Order recommended based on current stock levels and demand patterns.',
@@ -121,7 +121,7 @@ export async function exportOrderToExcel(item: InventoryItemWithForecast, quanti
       ['Reorder Point', item.reorderPoint, 'units', ''],
       ['Safety Stock', item.safetyStock, 'units', ''],
       ['Economic Order Quantity', item.economicOrderQuantity, 'units', ''],
-      ['Daily Demand', item.dailyDemand.toFixed(1), 'units', ''],
+      ['Weekly Demand', item.weeklyDemand.toFixed(1), 'units', ''],
       ['Lead Time', item.leadTimeDays, 'days', ''],
       ['', '', '', ''],
       ['AI Insights', '', '', ''],
@@ -132,15 +132,15 @@ export async function exportOrderToExcel(item: InventoryItemWithForecast, quanti
       orderData.push([insight, '', '', '']);
     });
     
-    // Add 7-day forecast
+    // Add 12-week forecast
     orderData.push(['', '', '', '']);
-    orderData.push(['7-Day Stock Forecast', '', '', '']);
-    orderData.push(['Day', 'Date', 'Projected Stock', 'Status']);
+    orderData.push(['12-Week Stock Forecast', '', '', '']);
+    orderData.push(['Week', 'Week Start', 'Projected Stock', 'Status']);
     
     item.stockStatus.forEach((status, index) => {
       orderData.push([
-        `Day ${index + 1}`,
-        status.date,
+        `Week ${index + 1}`,
+        status.weekStartDate,
         status.projectedStock,
         status.status.toUpperCase()
       ]);
@@ -193,13 +193,13 @@ export async function exportInventorySummary(inventory: InventoryItemWithForecas
       'Reorder Point': item.reorderPoint,
       'Safety Stock': item.safetyStock,
       'EOQ': item.economicOrderQuantity,
-      'Daily Demand': parseFloat(item.dailyDemand.toFixed(1)),
+      'Weekly Demand': parseFloat(item.weeklyDemand.toFixed(1)),
       'Unit Cost': parseFloat(item.unitCost.toFixed(2)),
       'Total Value': parseFloat((item.currentStock * item.unitCost).toFixed(2)),
       'Supplier': item.supplier,
       'Category': item.category,
       'Status': item.currentStock <= item.reorderPoint ? 'LOW STOCK' : 'OK',
-      'Days Until Reorder': Math.floor((item.currentStock - item.reorderPoint) / item.dailyDemand),
+      'Weeks Until Reorder': Math.floor((item.currentStock - item.reorderPoint) / item.weeklyDemand),
     }));
     
     // Create worksheet
@@ -219,7 +219,7 @@ export async function exportInventorySummary(inventory: InventoryItemWithForecas
       { width: 15 }, // Supplier
       { width: 15 }, // Category
       { width: 12 }, // Status
-      { width: 15 }, // Days Until Reorder
+      { width: 15 }, // Weeks Until Reorder
     ];
     
     // Create workbook
