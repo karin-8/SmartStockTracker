@@ -119,9 +119,9 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
           <div>
-            <h3 className="text-xl font-semibold text-gray-900">12-Week Stock Forecast</h3>
+            <h3 className="text-xl font-semibold text-gray-900">8-Week Stock Forecast</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Predicted stock status for the next 12 weeks • Showing {filteredInventory.length} of {inventory.length} items
+              4 weeks historical + 8 weeks forecast • Showing {filteredInventory.length} of {inventory.length} items
             </p>
           </div>
           <div className="flex items-center space-x-2 mt-4 sm:mt-0">
@@ -211,11 +211,17 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Current
               </th>
-              {[...Array(12)].map((_, i) => (
-                <th key={i} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Week {i + 1}
-                </th>
-              ))}
+              {[...Array(12)].map((_, i) => {
+                const isHistorical = i < 4;
+                const weekLabel = isHistorical ? `W-${4-i}` : `W+${i-3}`;
+                return (
+                  <th key={i} className={`px-3 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+                    isHistorical ? 'text-gray-400 bg-gray-25' : 'text-gray-500'
+                  }`}>
+                    {weekLabel}
+                  </th>
+                );
+              })}
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Action
               </th>
@@ -243,7 +249,12 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
                 </td>
                 {item.stockStatus.map((status, index) => (
                   <td key={index} className="px-3 py-4 text-center">
-                    {getStatusBadge(status.status)}
+                    <div className="space-y-1">
+                      {getStatusBadge(status.status)}
+                      <div className="text-xs font-mono text-gray-600">
+                        {status.projectedStock}
+                      </div>
+                    </div>
                   </td>
                 ))}
                 <td className="px-6 py-4 text-right">

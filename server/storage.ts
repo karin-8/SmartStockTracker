@@ -214,8 +214,8 @@ export class MemStorage implements IStorage {
     const variability = this.calculateDemandVariability(demands);
     
     const forecast = [];
-    for (let i = 0; i < 12; i++) {
-      // Simple linear trend with some randomness for 12 weeks
+    for (let i = 0; i < 8; i++) {
+      // Simple linear trend with some randomness for 8 weeks
       const trendFactor = 1 + (Math.random() - 0.5) * 0.1;
       const variabilityFactor = Math.random() * variability;
       forecast.push(Math.max(0, Math.floor(weeklyDemand * trendFactor + variabilityFactor)));
@@ -230,11 +230,46 @@ export class MemStorage implements IStorage {
     weekEndDate: string;
     status: "enough" | "low" | "order";
     projectedStock: number;
+    isHistorical: boolean;
   }> {
     const status = [];
-    let projectedStock = item.currentStock;
+    const weeklyDemand = this.calculateWeeklyDemand(this.demandHistory.get(item.id) || []);
     
-    for (let i = 0; i < 12; i++) {
+    // Generate 4 historical weeks
+    for (let i = -4; i < 0; i++) {
+      const weekStart = new Date();
+      weekStart.setDate(weekStart.getDate() + (i * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      
+      // Calculate historical stock based on current stock + projected consumption
+      const weeksFromNow = Math.abs(i);
+      const historicalStock = item.currentStock + (weeklyDemand * weeksFromNow);
+      
+      let statusValue: "enough" | "low" | "order";
+      if (historicalStock <= 0) {
+        statusValue = "order";
+      } else if (historicalStock <= item.reorderPoint) {
+        statusValue = "order";
+      } else if (historicalStock <= item.reorderPoint * 1.5) {
+        statusValue = "low";
+      } else {
+        statusValue = "enough";
+      }
+      
+      status.push({
+        week: i + 5, // Week -3, -2, -1, 0 become weeks 1, 2, 3, 4
+        weekStartDate: weekStart.toISOString().split('T')[0],
+        weekEndDate: weekEnd.toISOString().split('T')[0],
+        status: statusValue,
+        projectedStock: Math.max(0, Math.floor(historicalStock)),
+        isHistorical: true
+      });
+    }
+    
+    // Generate 8 future weeks (including current week)
+    let projectedStock = item.currentStock;
+    for (let i = 0; i < 8; i++) {
       projectedStock -= forecast[i];
       const weekStart = new Date();
       weekStart.setDate(weekStart.getDate() + (i * 7));
@@ -253,11 +288,12 @@ export class MemStorage implements IStorage {
       }
       
       status.push({
-        week: i + 1,
+        week: i + 5, // Weeks 5-12
         weekStartDate: weekStart.toISOString().split('T')[0],
         weekEndDate: weekEnd.toISOString().split('T')[0],
         status: statusValue,
-        projectedStock: Math.max(0, projectedStock)
+        projectedStock: Math.max(0, projectedStock),
+        isHistorical: false
       });
     }
     

@@ -68,6 +68,7 @@ export type InventoryItemWithForecast = InventoryItem & {
     weekEndDate: string;
     status: "enough" | "low" | "order";
     projectedStock: number;
+    isHistorical: boolean;
   }>;
   aiInsights: string[];
 };

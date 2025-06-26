@@ -11,8 +11,9 @@ A full-stack inventory management system with demand forecasting, stock optimiza
 - **Export**: jsPDF and xlsx for order exports
 
 ## Key Features
-- Dashboard with key metrics (total items, low stock alerts, total value, pending orders)
-- 12-week stock forecast table with color-coded status indicators
+- Dashboard with key metrics (total SKU, low stock alerts, total value, pending orders)
+- 8-week stock forecast table with 4 historical weeks and color-coded status indicators
+- Stock numbers displayed in forecast table alongside status badges
 - Advanced filtering by category, status, and supplier
 - AI-powered insights and recommendations
 - Order creation form with EOQ calculations
@@ -20,15 +21,19 @@ A full-stack inventory management system with demand forecasting, stock optimiza
 - PDF and Excel export functionality
 
 ## Recent Changes
-**2024-12-26**: Changed granularity from daily to weekly
-- Updated forecast to show 12 weeks instead of 7 days
-- Modified all calculations to use weekly demand patterns
-- Updated UI components to display weekly data
+**2025-06-26**: Updated metrics and forecast display
+- Changed "Items" to "SKU" in metrics cards
+- Modified forecast from 12 weeks to 8 weeks future + 4 weeks historical
+- Added stock numbers to forecast table showing projected quantities
+- Updated all calculations to use weekly demand patterns
+- Fixed order creation functionality
 - Implemented comprehensive filtering and export features
 
 ## User Preferences
 - Prefers weekly granularity over daily for better long-term planning
-- Wants to see 12-week forecasts for strategic inventory management
+- Wants to see 8-week forecasts with 4 weeks of historical context
+- Prefers "SKU" terminology over "Items"
+- Wants stock quantities displayed alongside status indicators
 
 ## Technical Decisions
 - Using in-memory storage for development/demo purposes

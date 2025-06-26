@@ -38,7 +38,7 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Total Items</p>
+              <p className="text-sm font-medium text-gray-600">Total SKU</p>
               <p className="text-3xl font-bold text-gray-900">
                 {metrics.totalItems}
               </p>
@@ -60,7 +60,7 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">
-                Low Stock Items
+                Low Stock SKU
               </p>
               <p className="text-3xl font-bold text-red-600">
                 {metrics.lowStockItems}

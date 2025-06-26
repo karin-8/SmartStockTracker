@@ -132,9 +132,9 @@ export async function exportOrderToExcel(item: InventoryItemWithForecast, quanti
       orderData.push([insight, '', '', '']);
     });
     
-    // Add 12-week forecast
+    // Add 8-week forecast
     orderData.push(['', '', '', '']);
-    orderData.push(['12-Week Stock Forecast', '', '', '']);
+    orderData.push(['8-Week Stock Forecast', '', '', '']);
     orderData.push(['Week', 'Week Start', 'Projected Stock', 'Status']);
     
     item.stockStatus.forEach((status, index) => {
