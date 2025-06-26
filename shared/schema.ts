@@ -78,4 +78,8 @@ export type DashboardMetrics = {
   pendingOrders: number;
   turnoverRate: number;
   stockoutFrequency: number;
+  // Historical comparisons
+  totalItemsChange: number;
+  totalValueChange: number;
+  lowStockChange: number;
 };

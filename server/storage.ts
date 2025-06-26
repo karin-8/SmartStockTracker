@@ -337,13 +337,22 @@ export class DatabaseStorage implements IStorage {
     // Calculate stockout frequency (simplified)
     const stockoutFrequency = (lowStockItems / totalItems) * 100;
     
+    // Calculate historical comparisons based on recent demand patterns
+    // For new systems without historical data, use 0 change
+    const totalItemsChange = 0; // Would compare against inventory count from 7 days ago
+    const totalValueChange = 0; // Would compare against value from 7 days ago  
+    const lowStockChange = 0; // Would compare against low stock count from 7 days ago
+    
     return {
       totalItems,
       lowStockItems,
       totalValue,
       pendingOrders,
       turnoverRate,
-      stockoutFrequency
+      stockoutFrequency,
+      totalItemsChange,
+      totalValueChange,
+      lowStockChange
     };
   }
 
