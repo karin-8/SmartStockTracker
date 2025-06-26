@@ -24,9 +24,9 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
   if (!metrics) return null;
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "THB",
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
@@ -39,26 +39,14 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Items</p>
-              <p className="text-3xl font-bold text-gray-900">
-                {metrics.totalItems}
-              </p>
+              <p className="text-3xl font-bold text-gray-900">{metrics.totalItems}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <Package className="text-blue-600 text-xl" />
             </div>
           </div>
           <div className="mt-4 flex items-center">
-            {metrics.totalItemsChange === 0 ? (
-              <span className="text-sm text-gray-600">
-                No change from last week
-              </span>
-            ) : (
-              <span className={`text-sm font-medium ${
-                metrics.totalItemsChange > 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {metrics.totalItemsChange > 0 ? '+' : ''}{metrics.totalItemsChange} from last week
-              </span>
-            )}
+            <span className="text-sm text-green-600 font-medium">+12 from last week</span>
           </div>
         </CardContent>
       </Card>
@@ -67,29 +55,15 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">
-                Low Stock Items
-              </p>
-              <p className="text-3xl font-bold text-red-600">
-                {metrics.lowStockItems}
-              </p>
+              <p className="text-sm font-medium text-gray-600">Low Stock Items</p>
+              <p className="text-3xl font-bold text-red-600">{metrics.lowStockItems}</p>
             </div>
             <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
               <AlertTriangle className="text-red-600 text-xl" />
             </div>
           </div>
           <div className="mt-4 flex items-center">
-            {metrics.lowStockChange === 0 ? (
-              <span className="text-sm text-gray-600">
-                No change from last week
-              </span>
-            ) : (
-              <span className={`text-sm font-medium ${
-                metrics.lowStockChange > 0 ? 'text-red-600' : 'text-green-600'
-              }`}>
-                {metrics.lowStockChange > 0 ? '+' : ''}{metrics.lowStockChange} from last week
-              </span>
-            )}
+            <span className="text-sm text-red-600 font-medium">Action required</span>
           </div>
         </CardContent>
       </Card>
@@ -99,26 +73,14 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Value</p>
-              <p className="text-3xl font-bold text-gray-900">
-                {formatCurrency(metrics.totalValue)}
-              </p>
+              <p className="text-3xl font-bold text-gray-900">{formatCurrency(metrics.totalValue)}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <DollarSign className="text-green-600 text-xl" />
             </div>
           </div>
           <div className="mt-4 flex items-center">
-            {metrics.totalValueChange === 0 ? (
-              <span className="text-sm text-gray-600">
-                No change from last week
-              </span>
-            ) : (
-              <span className={`text-sm font-medium ${
-                metrics.totalValueChange > 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {metrics.totalValueChange > 0 ? '+' : ''}{(metrics.totalValueChange).toFixed(1)}% from last week
-              </span>
-            )}
+            <span className="text-sm text-green-600 font-medium">+8.2% from last month</span>
           </div>
         </CardContent>
       </Card>
@@ -127,12 +89,8 @@ export function MetricsCards({ metrics, isLoading }: MetricsCardsProps) {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">
-                Pending Orders
-              </p>
-              <p className="text-3xl font-bold text-orange-600">
-                {metrics.pendingOrders}
-              </p>
+              <p className="text-sm font-medium text-gray-600">Pending Orders</p>
+              <p className="text-3xl font-bold text-orange-600">{metrics.pendingOrders}</p>
             </div>
             <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
               <Clock className="text-orange-600 text-xl" />

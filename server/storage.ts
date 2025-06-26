@@ -11,8 +11,6 @@ import {
   type DashboardMetrics,
   type InventoryItemWithForecast
 } from "@shared/schema";
-import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Inventory Items
@@ -35,24 +33,27 @@ export interface IStorage {
   getInventoryWithForecast(): Promise<InventoryItemWithForecast[]>;
 }
 
-export class DatabaseStorage implements IStorage {
+export class MemStorage implements IStorage {
+  private inventoryItems: Map<number, InventoryItem>;
+  private demandHistory: Map<number, DemandHistory[]>;
+  private orders: Map<number, Order>;
+  private currentItemId: number;
+  private currentDemandId: number;
+  private currentOrderId: number;
+
   constructor() {
-    // Initialize with sample data if database is empty
-    this.initializeSampleDataIfNeeded();
+    this.inventoryItems = new Map();
+    this.demandHistory = new Map();
+    this.orders = new Map();
+    this.currentItemId = 1;
+    this.currentDemandId = 1;
+    this.currentOrderId = 1;
+    
+    // Initialize with realistic sample data
+    this.initializeSampleData();
   }
 
-  private async initializeSampleDataIfNeeded() {
-    try {
-      const existingItems = await db.select().from(inventoryItems).limit(1);
-      if (existingItems.length === 0) {
-        await this.initializeSampleData();
-      }
-    } catch (error) {
-      console.error("Error checking for existing data:", error);
-    }
-  }
-
-  private async initializeSampleData() {
+  private initializeSampleData() {
     const sampleItems: InsertInventoryItem[] = [
       {
         name: "Wireless Headphones",
@@ -126,40 +127,38 @@ export class DatabaseStorage implements IStorage {
       }
     ];
 
-    try {
-      // Insert inventory items
-      const insertedItems = await db.insert(inventoryItems).values(sampleItems).returning();
+    sampleItems.forEach(item => {
+      const id = this.currentItemId++;
+      const inventoryItem: InventoryItem = {
+        ...item,
+        id,
+        lastUpdated: new Date()
+      };
+      this.inventoryItems.set(id, inventoryItem);
       
-      // Generate demand history for each item
-      for (const item of insertedItems) {
-        const demands: InsertDemandHistory[] = [];
+      // Generate demand history for past 30 days
+      const demands: DemandHistory[] = [];
+      for (let i = 30; i > 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
         
-        for (let i = 30; i > 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          
-          // Generate realistic demand based on item type
-          let baseDemand = 5;
-          if (item.name.includes("USB-C")) baseDemand = 12;
-          else if (item.name.includes("Headphones")) baseDemand = 8;
-          else if (item.name.includes("Speaker")) baseDemand = 3;
-          
-          const quantity = Math.max(0, Math.floor(baseDemand + Math.random() * 6 - 3));
-          
-          demands.push({
-            itemId: item.id,
-            date,
-            quantity
-          });
-        }
+        // Generate realistic demand based on item type
+        let baseDemand = 5;
+        if (item.name.includes("USB-C")) baseDemand = 12;
+        else if (item.name.includes("Headphones")) baseDemand = 8;
+        else if (item.name.includes("Speaker")) baseDemand = 3;
         
-        await db.insert(demandHistory).values(demands);
+        const quantity = Math.max(0, Math.floor(baseDemand + Math.random() * 6 - 3));
+        
+        demands.push({
+          id: this.currentDemandId++,
+          itemId: id,
+          date,
+          quantity
+        });
       }
-      
-      console.log("Sample data initialized successfully");
-    } catch (error) {
-      console.error("Error initializing sample data:", error);
-    }
+      this.demandHistory.set(id, demands);
+    });
   }
 
   private calculateMovingAverage(demands: DemandHistory[], days: number = 7): number {
@@ -246,102 +245,104 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getInventoryItems(): Promise<InventoryItem[]> {
-    return await db.select().from(inventoryItems);
+    return Array.from(this.inventoryItems.values());
   }
 
   async getInventoryItem(id: number): Promise<InventoryItem | undefined> {
-    const [item] = await db.select().from(inventoryItems).where(eq(inventoryItems.id, id));
-    return item || undefined;
+    return this.inventoryItems.get(id);
   }
 
   async createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem> {
-    const [newItem] = await db.insert(inventoryItems).values(item).returning();
-    return newItem;
+    const id = this.currentItemId++;
+    const inventoryItem: InventoryItem = {
+      ...item,
+      id,
+      lastUpdated: new Date()
+    };
+    this.inventoryItems.set(id, inventoryItem);
+    return inventoryItem;
   }
 
   async updateInventoryItem(id: number, updates: Partial<InsertInventoryItem>): Promise<InventoryItem> {
-    const [updatedItem] = await db
-      .update(inventoryItems)
-      .set({ ...updates, lastUpdated: new Date() })
-      .where(eq(inventoryItems.id, id))
-      .returning();
-    
-    if (!updatedItem) {
+    const existing = this.inventoryItems.get(id);
+    if (!existing) {
       throw new Error(`Inventory item with id ${id} not found`);
     }
     
-    return updatedItem;
+    const updated: InventoryItem = {
+      ...existing,
+      ...updates,
+      lastUpdated: new Date()
+    };
+    this.inventoryItems.set(id, updated);
+    return updated;
   }
 
   async getDemandHistory(itemId: number, days?: number): Promise<DemandHistory[]> {
-    const query = db.select().from(demandHistory)
-      .where(eq(demandHistory.itemId, itemId))
-      .orderBy(desc(demandHistory.date));
-    
-    let demands = await query;
-    
+    const demands = this.demandHistory.get(itemId) || [];
     if (days) {
-      demands = demands.slice(0, days);
+      return demands.slice(-days);
     }
-    
-    return demands.reverse(); // Return in chronological order
+    return demands;
   }
 
   async addDemandHistory(demand: InsertDemandHistory): Promise<DemandHistory> {
-    const [newDemand] = await db.insert(demandHistory).values(demand).returning();
-    return newDemand;
+    const id = this.currentDemandId++;
+    const demandRecord: DemandHistory = { ...demand, id };
+    
+    const existing = this.demandHistory.get(demand.itemId) || [];
+    existing.push(demandRecord);
+    this.demandHistory.set(demand.itemId, existing);
+    
+    return demandRecord;
   }
 
   async getOrders(): Promise<Order[]> {
-    return await db.select().from(orders).orderBy(desc(orders.orderDate));
+    return Array.from(this.orders.values());
   }
 
   async createOrder(order: InsertOrder): Promise<Order> {
-    const [newOrder] = await db.insert(orders).values({
+    const id = this.currentOrderId++;
+    const orderRecord: Order = {
       ...order,
+      id,
       status: order.status || "pending",
+      orderDate: new Date(),
       expectedDeliveryDate: order.expectedDeliveryDate || null
-    }).returning();
-    return newOrder;
+    };
+    this.orders.set(id, orderRecord);
+    return orderRecord;
   }
 
   async updateOrderStatus(id: number, status: string): Promise<Order> {
-    const [updatedOrder] = await db
-      .update(orders)
-      .set({ status })
-      .where(eq(orders.id, id))
-      .returning();
-    
-    if (!updatedOrder) {
+    const existing = this.orders.get(id);
+    if (!existing) {
       throw new Error(`Order with id ${id} not found`);
     }
     
-    return updatedOrder;
+    const updated: Order = { ...existing, status };
+    this.orders.set(id, updated);
+    return updated;
   }
 
   async getDashboardMetrics(): Promise<DashboardMetrics> {
-    const items = await db.select().from(inventoryItems);
-    const ordersList = await db.select().from(orders);
+    const items = Array.from(this.inventoryItems.values());
+    const orders = Array.from(this.orders.values());
     
     const totalItems = items.length;
     const lowStockItems = items.filter(item => item.currentStock <= item.reorderPoint).length;
     const totalValue = items.reduce((sum, item) => sum + (item.currentStock * item.unitCost), 0);
-    const pendingOrders = ordersList.filter(order => order.status === "pending").length;
+    const pendingOrders = orders.filter(order => order.status === "pending").length;
     
     // Calculate turnover rate (simplified)
-    const allDemands = await db.select().from(demandHistory);
-    const totalDemand = allDemands.reduce((sum, d) => sum + d.quantity, 0);
+    const totalDemand = Array.from(this.demandHistory.values())
+      .flat()
+      .reduce((sum, d) => sum + d.quantity, 0);
     const avgStock = items.reduce((sum, item) => sum + item.currentStock, 0) / items.length;
     const turnoverRate = totalDemand / (avgStock * 30) * 365; // Annualized
     
     // Calculate stockout frequency (simplified)
     const stockoutFrequency = (lowStockItems / totalItems) * 100;
-    
-    // Calculate historical comparisons based on recent demand patterns
-    // For new systems without historical data, use 0 change
-    const totalItemsChange = 0; // Would compare against inventory count from 7 days ago
-    const totalValueChange = 0; // Would compare against value from 7 days ago  
-    const lowStockChange = 0; // Would compare against low stock count from 7 days ago
     
     return {
       totalItems,
@@ -349,37 +350,31 @@ export class DatabaseStorage implements IStorage {
       totalValue,
       pendingOrders,
       turnoverRate,
-      stockoutFrequency,
-      totalItemsChange,
-      totalValueChange,
-      lowStockChange
+      stockoutFrequency
     };
   }
 
   async getInventoryWithForecast(): Promise<InventoryItemWithForecast[]> {
-    const items = await db.select().from(inventoryItems);
+    const items = Array.from(this.inventoryItems.values());
     
-    const result = [];
-    for (const item of items) {
-      const demands = await this.getDemandHistory(item.id);
+    return items.map(item => {
+      const demands = this.demandHistory.get(item.id) || [];
       const dailyDemand = this.calculateMovingAverage(demands);
       const demandVariability = this.calculateDemandVariability(demands);
       const forecast = this.generateForecast(item, demands);
       const stockStatus = this.generateStockStatus(item, forecast);
       const aiInsights = this.generateAIInsights(item, stockStatus, dailyDemand);
       
-      result.push({
+      return {
         ...item,
         forecast,
         dailyDemand,
         demandVariability,
         stockStatus,
         aiInsights
-      });
-    }
-    
-    return result;
+      };
+    });
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new MemStorage();
