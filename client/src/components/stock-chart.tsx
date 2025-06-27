@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import type { InventoryItemWithForecast } from "@shared/schema";
 
@@ -12,9 +18,10 @@ export function StockChart({ inventory }: StockChartProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<any>(null);
   const [selectedItemId, setSelectedItemId] = useState<string>("");
-  const [timeRange, setTimeRange] = useState<"12W" | "24W" | "52W">("24W");
 
-  const selectedItem = inventory?.find(item => item.id.toString() === selectedItemId);
+  const selectedItem = inventory?.find(
+    (item) => item.id.toString() === selectedItemId,
+  );
 
   useEffect(() => {
     if (inventory && inventory.length > 0 && !selectedItemId) {
@@ -26,113 +33,103 @@ export function StockChart({ inventory }: StockChartProps) {
     const loadChart = async () => {
       if (!selectedItem || !canvasRef.current) return;
 
-      // Dynamically import Chart.js
-      const { Chart, registerables } = await import('chart.js');
+      const { Chart, registerables } = await import("chart.js");
       Chart.register(...registerables);
 
-      // Destroy existing chart
       if (chartRef.current) {
         chartRef.current.destroy();
       }
 
-      const ctx = canvasRef.current.getContext('2d');
+      const ctx = canvasRef.current.getContext("2d");
       if (!ctx) return;
 
-      // Generate data based on time range
-      const getWeeksCount = () => {
-        switch (timeRange) {
-          case "12W": return 12;
-          case "24W": return 24;
-          case "52W": return 52;
-          default: return 24;
-        }
-      };
+      const labels = [
+        "W-4",
+        "W-3",
+        "W-2",
+        "W-1",
+        "Current",
+        "W+1",
+        "W+2",
+        "W+3",
+        "W+4",
+        "W+5",
+        "W+6",
+        "W+7",
+        "W+8",
+      ];
+      const stockLevelData: (number | null)[] = [];
+      const forecastData: (number | null)[] = [];
+      const ropData: number[] = [];
+      const safetyStockData: number[] = [];
 
-      const weeksCount = getWeeksCount();
-      const labels = [];
-      const stockData = [];
-      const ropData = [];
-      const safetyStockData = [];
-      const forecastData = [];
-
-      // Generate historical data (past weeks)
-      for (let i = -weeksCount + 12; i <= 0; i++) {
-        const weekStart = new Date();
-        weekStart.setDate(weekStart.getDate() + (i * 7));
-        labels.push(weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-        
-        // Simulate historical stock level with some variance
-        const baseStock = selectedItem.currentStock + (Math.abs(i) * selectedItem.weeklyDemand);
-        const variance = Math.random() * 20 - 10;
-        stockData.push(Math.max(0, baseStock + variance));
-        
-        ropData.push(selectedItem.reorderPoint);
-        safetyStockData.push(selectedItem.safetyStock);
+      // Historical weeks (W-4 to W-1)
+      selectedItem.stockStatus.slice(0, 4).forEach((status) => {
+        stockLevelData.push(status.projectedStock);
         forecastData.push(null);
-      }
+      });
 
-      // Add forecast data (next 12 weeks)
-      for (let i = 1; i <= 12; i++) {
-        const weekStart = new Date();
-        weekStart.setDate(weekStart.getDate() + (i * 7));
-        labels.push(weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
-        
-        stockData.push(null);
+      // Current Stock
+      stockLevelData.push(selectedItem.currentStock);
+      forecastData.push(null);
+
+      // Forecast weeks (W+1 to W+8)
+      selectedItem.stockStatus.slice(4).forEach((status) => {
+        stockLevelData.push(null);
+        forecastData.push(status.projectedStock);
+      });
+
+      // ROP and Safety Stock (flat lines)
+      for (let i = 0; i < labels.length; i++) {
         ropData.push(selectedItem.reorderPoint);
         safetyStockData.push(selectedItem.safetyStock);
-        
-        // Use the forecast data from the item
-        const projectedStock = selectedItem.stockStatus[i - 1]?.projectedStock || 0;
-        forecastData.push(projectedStock);
       }
 
       chartRef.current = new Chart(ctx, {
-        type: 'line',
+        type: "line",
         data: {
-          labels: labels,
+          labels,
           datasets: [
             {
-              label: 'Historical Stock',
-              data: stockData,
-              borderColor: 'hsl(207, 90%, 54%)',
-              backgroundColor: 'hsl(207, 90%, 54%)',
+              label: "Stock Level",
+              data: stockLevelData,
+              borderColor: "hsl(207, 90%, 54%)",
+              backgroundColor: "hsl(207, 90%, 54%)",
               borderWidth: 2,
               fill: false,
               tension: 0.1,
-              pointRadius: 2,
+              pointRadius: 3,
             },
             {
-              label: 'Forecast',
+              label: "Forecast",
               data: forecastData,
-              borderColor: 'hsl(25, 5.3%, 44.7%)',
-              backgroundColor: 'hsl(25, 5.3%, 44.7%)',
+              borderColor: "hsl(25, 5.3%, 44.7%)",
+              backgroundColor: "hsl(25, 5.3%, 44.7%)",
               borderWidth: 2,
               borderDash: [5, 5],
               fill: false,
               tension: 0.1,
-              pointRadius: 2,
+              pointRadius: 3,
             },
             {
-              label: 'Reorder Point',
+              label: "Reorder Point",
               data: ropData,
-              borderColor: 'hsl(0, 84.2%, 60.2%)',
-              backgroundColor: 'hsl(0, 84.2%, 60.2%)',
+              borderColor: "hsl(0, 84.2%, 60.2%)",
               borderWidth: 2,
               borderDash: [5, 5],
               fill: false,
               pointRadius: 0,
             },
             {
-              label: 'Safety Stock',
+              label: "Safety Stock",
               data: safetyStockData,
-              borderColor: 'hsl(25, 95%, 53%)',
-              backgroundColor: 'hsl(25, 95%, 53%)',
+              borderColor: "hsl(25, 95%, 53%)",
               borderWidth: 2,
               borderDash: [10, 5],
               fill: false,
               pointRadius: 0,
             },
-          ]
+          ],
         },
         options: {
           responsive: true,
@@ -142,26 +139,26 @@ export function StockChart({ inventory }: StockChartProps) {
               beginAtZero: true,
               title: {
                 display: true,
-                text: 'Stock Quantity'
-              }
+                text: "Stock Quantity",
+              },
             },
             x: {
               title: {
                 display: true,
-                text: 'Date'
-              }
-            }
+                text: "Week",
+              },
+            },
           },
           plugins: {
             legend: {
-              display: false
+              display: false,
             },
             tooltip: {
-              mode: 'index',
-              intersect: false
-            }
-          }
-        }
+              mode: "index",
+              intersect: false,
+            },
+          },
+        },
       });
     };
 
@@ -172,7 +169,7 @@ export function StockChart({ inventory }: StockChartProps) {
         chartRef.current.destroy();
       }
     };
-  }, [selectedItem, timeRange]);
+  }, [selectedItem]);
 
   if (!inventory || inventory.length === 0) {
     return (
@@ -194,46 +191,23 @@ export function StockChart({ inventory }: StockChartProps) {
       <CardHeader>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
           <div>
-            <CardTitle className="text-xl font-semibold text-gray-900">Stock Level Trends</CardTitle>
-            <p className="text-sm text-gray-600 mt-1">Historical and projected weekly stock levels with ROP indicators</p>
+            <CardTitle className="text-xl font-semibold text-gray-900">
+              Stock Level Trends
+            </CardTitle>
+            <p className="text-sm text-gray-600 mt-1"></p>
           </div>
-          <div className="flex items-center space-x-2 mt-4 sm:mt-0">
-            <Select value={selectedItemId} onValueChange={setSelectedItemId}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {inventory.map((item) => (
-                  <SelectItem key={item.id} value={item.id.toString()}>
-                    {item.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex space-x-1">
-              <Button
-                variant={timeRange === "12W" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("12W")}
-              >
-                12W
-              </Button>
-              <Button
-                variant={timeRange === "24W" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("24W")}
-              >
-                24W
-              </Button>
-              <Button
-                variant={timeRange === "52W" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("52W")}
-              >
-                52W
-              </Button>
-            </div>
-          </div>
+          <Select value={selectedItemId} onValueChange={setSelectedItemId}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {inventory.map((item) => (
+                <SelectItem key={item.id} value={item.id.toString()}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </CardHeader>
       <CardContent>
@@ -241,24 +215,24 @@ export function StockChart({ inventory }: StockChartProps) {
           <canvas ref={canvasRef} className="w-full h-full" />
         </div>
         <div className="flex justify-center mt-4 space-x-6">
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-blue-600 rounded mr-2"></div>
-            <span className="text-sm text-gray-600">Stock Level</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-red-600 rounded mr-2"></div>
-            <span className="text-sm text-gray-600">Reorder Point</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-orange-600 rounded mr-2"></div>
-            <span className="text-sm text-gray-600">Safety Stock</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-gray-400 rounded mr-2"></div>
-            <span className="text-sm text-gray-600">Forecast</span>
-          </div>
+          <LegendDot color="hsl(207, 90%, 54%)" label="Stock Level" />
+          <LegendDot color="hsl(0, 84.2%, 60.2%)" label="Reorder Point" />
+          <LegendDot color="hsl(25, 95%, 53%)" label="Safety Stock" />
+          <LegendDot color="hsl(25, 5.3%, 44.7%)" label="Forecast" />
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex items-center">
+      <div
+        className="w-3 h-3 rounded mr-2"
+        style={{ backgroundColor: color }}
+      ></div>
+      <span className="text-sm text-gray-600">{label}</span>
+    </div>
   );
 }
