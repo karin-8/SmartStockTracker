@@ -263,6 +263,16 @@ export class MemStorage implements IStorage {
       });
     }
     
+    // Find first "order" week
+    let firstOrderWeekIndex = -1;
+    for (let i = 0; i < allWeeks.length; i++) {
+      const currentWeek = allWeeks[i];
+      if (currentWeek.projectedStock <= 0 || currentWeek.projectedStock <= item.reorderPoint) {
+        firstOrderWeekIndex = i;
+        break;
+      }
+    }
+    
     // Now determine status based on "low is one week before order"
     for (let i = 0; i < allWeeks.length; i++) {
       const currentWeek = allWeeks[i];
@@ -271,14 +281,11 @@ export class MemStorage implements IStorage {
       // Check if current week should be "order"
       if (currentWeek.projectedStock <= 0 || currentWeek.projectedStock <= item.reorderPoint) {
         statusValue = "order";
+      } else if (firstOrderWeekIndex !== -1 && i === firstOrderWeekIndex - 1) {
+        // This is exactly one week before the first "order" week
+        statusValue = "low";
       } else {
-        // Check if next week would be "order" - if so, this week is "low"
-        const nextWeek = allWeeks[i + 1];
-        if (nextWeek && (nextWeek.projectedStock <= 0 || nextWeek.projectedStock <= item.reorderPoint)) {
-          statusValue = "low";
-        } else {
-          statusValue = "enough";
-        }
+        statusValue = "enough";
       }
       
       status.push({
@@ -802,6 +809,16 @@ export class PostgreSQLStorage implements IStorage {
       });
     }
     
+    // Find first "order" week
+    let firstOrderWeekIndex = -1;
+    for (let i = 0; i < allWeeks.length; i++) {
+      const currentWeek = allWeeks[i];
+      if (currentWeek.projectedStock <= 0 || currentWeek.projectedStock <= item.reorderPoint) {
+        firstOrderWeekIndex = i;
+        break;
+      }
+    }
+    
     // Now determine status based on "low is one week before order"
     for (let i = 0; i < allWeeks.length; i++) {
       const currentWeek = allWeeks[i];
@@ -810,14 +827,11 @@ export class PostgreSQLStorage implements IStorage {
       // Check if current week should be "order"
       if (currentWeek.projectedStock <= 0 || currentWeek.projectedStock <= item.reorderPoint) {
         statusValue = "order";
+      } else if (firstOrderWeekIndex !== -1 && i === firstOrderWeekIndex - 1) {
+        // This is exactly one week before the first "order" week
+        statusValue = "low";
       } else {
-        // Check if next week would be "order" - if so, this week is "low"
-        const nextWeek = allWeeks[i + 1];
-        if (nextWeek && (nextWeek.projectedStock <= 0 || nextWeek.projectedStock <= item.reorderPoint)) {
-          statusValue = "low";
-        } else {
-          statusValue = "enough";
-        }
+        statusValue = "enough";
       }
       
       stockStatus.push({
