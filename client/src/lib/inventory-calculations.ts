@@ -2,11 +2,7 @@
  * Inventory management calculation utilities
  */
 
-export interface EOQParams {
-  annualDemand: number;
-  orderingCost: number;
-  holdingCost: number;
-}
+
 
 export interface ROPParams {
   dailyDemand: number;
@@ -20,17 +16,7 @@ export interface SafetyStockParams {
   serviceLevel: number; // Z-score (e.g., 1.65 for 95%)
 }
 
-/**
- * Calculate Economic Order Quantity (EOQ)
- * Formula: EOQ = √(2 × Annual Demand × Ordering Cost / Holding Cost)
- */
-export function calculateEOQ({ annualDemand, orderingCost, holdingCost }: EOQParams): number {
-  if (holdingCost <= 0 || annualDemand <= 0 || orderingCost <= 0) {
-    return 0;
-  }
-  
-  return Math.sqrt((2 * annualDemand * orderingCost) / holdingCost);
-}
+
 
 /**
  * Calculate Reorder Point (ROP)
@@ -55,13 +41,7 @@ export function calculateAnnualDemand(dailyDemand: number, workingDaysPerYear: n
   return dailyDemand * workingDaysPerYear;
 }
 
-/**
- * Calculate holding cost per unit per year
- * Typically 15-25% of unit cost
- */
-export function calculateHoldingCost(unitCost: number, holdingCostRate: number = 0.20): number {
-  return unitCost * holdingCostRate;
-}
+
 
 /**
  * Calculate demand variability (standard deviation)

@@ -47,7 +47,6 @@ export async function exportOrderToPDF(item: InventoryItemWithForecast, quantity
       `Current Stock: ${item.currentStock} units`,
       `Reorder Point: ${item.reorderPoint} units`,
       `Safety Stock: ${item.safetyStock} units`,
-      `Economic Order Quantity: ${item.economicOrderQuantity} units`,
       `Weekly Demand: ${item.weeklyDemand.toFixed(1)} units`,
       '',
       'JUSTIFICATION:',
@@ -120,7 +119,6 @@ export async function exportOrderToExcel(item: InventoryItemWithForecast, quanti
       ['Current Stock', item.currentStock, 'units', ''],
       ['Reorder Point', item.reorderPoint, 'units', ''],
       ['Safety Stock', item.safetyStock, 'units', ''],
-      ['Economic Order Quantity', item.economicOrderQuantity, 'units', ''],
       ['Weekly Demand', item.weeklyDemand.toFixed(1), 'units', ''],
       ['Lead Time', item.leadTimeDays, 'days', ''],
       ['', '', '', ''],
@@ -192,7 +190,6 @@ export async function exportInventorySummary(inventory: InventoryItemWithForecas
       'Current Stock': item.currentStock,
       'Reorder Point': item.reorderPoint,
       'Safety Stock': item.safetyStock,
-      'EOQ': item.economicOrderQuantity,
       'Weekly Demand': parseFloat(item.weeklyDemand.toFixed(1)),
       'Unit Cost': parseFloat(item.unitCost.toFixed(2)),
       'Total Value': parseFloat((item.currentStock * item.unitCost).toFixed(2)),
@@ -212,8 +209,7 @@ export async function exportInventorySummary(inventory: InventoryItemWithForecas
       { width: 12 }, // Current Stock
       { width: 12 }, // Reorder Point
       { width: 12 }, // Safety Stock
-      { width: 8 },  // EOQ
-      { width: 12 }, // Daily Demand
+      { width: 12 }, // Weekly Demand
       { width: 10 }, // Unit Cost
       { width: 12 }, // Total Value
       { width: 15 }, // Supplier

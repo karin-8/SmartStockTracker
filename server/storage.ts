@@ -63,10 +63,7 @@ export class MemStorage implements IStorage {
         currentStock: 156,
         reorderPoint: 75,
         safetyStock: 25,
-        economicOrderQuantity: 150,
         unitCost: 45.99,
-        holdingCost: 5.52,
-        orderingCost: 25.00,
         leadTimeDays: 7,
         category: "Electronics",
         supplier: "TechCorp"
@@ -77,10 +74,7 @@ export class MemStorage implements IStorage {
         currentStock: 89,
         reorderPoint: 50,
         safetyStock: 15,
-        economicOrderQuantity: 100,
         unitCost: 12.99,
-        holdingCost: 1.56,
-        orderingCost: 20.00,
         leadTimeDays: 5,
         category: "Accessories",
         supplier: "AccessoryPlus"
@@ -91,10 +85,7 @@ export class MemStorage implements IStorage {
         currentStock: 45,
         reorderPoint: 60,
         safetyStock: 20,
-        economicOrderQuantity: 200,
         unitCost: 8.99,
-        holdingCost: 1.08,
-        orderingCost: 15.00,
         leadTimeDays: 3,
         category: "Cables",
         supplier: "CableTech"
@@ -105,10 +96,7 @@ export class MemStorage implements IStorage {
         currentStock: 234,
         reorderPoint: 100,
         safetyStock: 30,
-        economicOrderQuantity: 120,
         unitCost: 89.99,
-        holdingCost: 10.80,
-        orderingCost: 30.00,
         leadTimeDays: 10,
         category: "Electronics",
         supplier: "AudioCorp"
@@ -119,10 +107,7 @@ export class MemStorage implements IStorage {
         currentStock: 67,
         reorderPoint: 40,
         safetyStock: 15,
-        economicOrderQuantity: 80,
         unitCost: 29.99,
-        holdingCost: 3.60,
-        orderingCost: 22.00,
         leadTimeDays: 6,
         category: "Electronics",
         supplier: "PowerTech"
@@ -314,7 +299,8 @@ export class MemStorage implements IStorage {
       insights.push(`High demand detected (${weeklyDemand.toFixed(1)} units/week). Consider increasing EOQ.`);
     }
     
-    if (item.currentStock > item.economicOrderQuantity * 2) {
+    // Check for overstock situation using reorder point as reference
+    if (item.currentStock > item.reorderPoint * 4) {
       insights.push(`Overstock situation. Consider reducing next order quantity.`);
     }
     

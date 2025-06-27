@@ -96,7 +96,7 @@ export function AIInsights({ inventory, metrics }: AIInsightsProps) {
                 <h4 className="text-sm font-medium text-green-600">Demand Trend</h4>
                 <p className="text-sm text-green-700 mt-1">
                   {trendInsight.item.name} showing {trendInsight.demandIncrease}% increase in demand. 
-                  Consider increasing EOQ for next order.
+                  Consider increasing order quantities for next purchase.
                 </p>
               </div>
             </div>

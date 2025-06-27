@@ -57,7 +57,9 @@ export function OrderForm({ inventory }: OrderFormProps) {
     setSelectedItemId(value);
     const item = inventory?.find(item => item.id.toString() === value);
     if (item) {
-      setOrderQuantity(item.economicOrderQuantity);
+      // Set default order quantity based on reorder point and safety stock
+      const suggestedQuantity = Math.max(item.reorderPoint + item.safetyStock, Math.ceil(item.weeklyDemand * 4));
+      setOrderQuantity(suggestedQuantity);
     }
   };
 
@@ -96,8 +98,10 @@ export function OrderForm({ inventory }: OrderFormProps) {
     if (!selectedItem) return "";
     
     const weeksUntilStockout = selectedItem.stockStatus.findIndex(s => s.status === "order");
+    const suggestedQuantity = Math.max(selectedItem.reorderPoint + selectedItem.safetyStock, Math.ceil(selectedItem.weeklyDemand * 4));
+    
     if (weeksUntilStockout >= 0) {
-      return `Based on current trends, order ${selectedItem.economicOrderQuantity} units now. Expected delivery in ${selectedItem.leadTimeDays} days will prevent stockout.`;
+      return `Based on current trends, order ${suggestedQuantity} units now. Expected delivery in ${selectedItem.leadTimeDays} days will prevent stockout.`;
     }
     
     return `Current stock levels are adequate. Next order recommended in ${Math.floor(selectedItem.currentStock / selectedItem.weeklyDemand)} weeks.`;
@@ -107,7 +111,7 @@ export function OrderForm({ inventory }: OrderFormProps) {
     <Card className="shadow-sm border border-gray-100">
       <CardHeader className="pb-4">
         <CardTitle className="text-xl font-semibold text-gray-900">Create New Order</CardTitle>
-        <p className="text-sm text-gray-600">Generate optimized orders based on EOQ calculations</p>
+        <p className="text-sm text-gray-600">Generate optimized orders based on demand forecasting and stock levels</p>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
@@ -150,9 +154,9 @@ export function OrderForm({ inventory }: OrderFormProps) {
                 </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">EOQ</p>
+                <p className="text-sm text-gray-600">Weekly Demand</p>
                 <p className="text-2xl font-bold text-green-600 font-mono">
-                  {selectedItem.economicOrderQuantity}
+                  {Math.round(selectedItem.weeklyDemand)}
                 </p>
               </div>
             </div>
