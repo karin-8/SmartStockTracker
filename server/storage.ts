@@ -200,11 +200,14 @@ export class MemStorage implements IStorage {
     const weeklyDemand = this.calculateWeeklyDemand(demands);
     const variability = this.calculateDemandVariability(demands);
     
+    // Use item ID as seed for consistent results
+    const seed = item.id * 123;
+    
     const forecast = [];
     for (let i = 0; i < 8; i++) {
-      // Simple linear trend with some randomness for 8 weeks
-      const trendFactor = 1 + (Math.random() - 0.5) * 0.1;
-      const variabilityFactor = Math.random() * variability;
+      // Simple linear trend with deterministic "randomness" for 8 weeks
+      const trendFactor = 1 + (Math.sin(seed + i) * 0.05);
+      const variabilityFactor = Math.cos(seed + i * 2) * variability * 0.3;
       forecast.push(Math.max(0, Math.floor(weeklyDemand * trendFactor + variabilityFactor)));
     }
     
@@ -744,10 +747,13 @@ export class PostgreSQLStorage implements IStorage {
     const weeklyDemand = this.calculateWeeklyDemand(demands);
     const forecast = [];
     
+    // Use item ID as seed for consistent results
+    const seed = item.id * 123;
+    
     // Generate 8 weeks of forecast
     for (let week = 1; week <= 8; week++) {
-      // Add some realistic variation (±20%)
-      const variation = (Math.random() - 0.5) * 0.4;
+      // Add some realistic variation (±20%) using deterministic approach
+      const variation = Math.sin(seed + week) * 0.2;
       const forecastValue = Math.max(0, weeklyDemand * (1 + variation));
       forecast.push(Math.round(forecastValue));
     }
