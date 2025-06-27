@@ -307,7 +307,7 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
                   W-{4 - i}
                 </th>
               ))}
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">
                 Current
               </th>
               {[...Array(8)].map((_, i) => (
@@ -341,7 +341,7 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
                       <div className="text-xs text-gray-400">
                         {item.supplier} • {item.category}
                       </div>
-                      <div className="text-xs text-gray-500 font-medium">
+                      <div className="text-xs text-blue-600 font-semibold">
                         Reordering Point: {item.reorderPoint}
                       </div>
                     </div>
@@ -357,7 +357,7 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
                     </div>
                   </td>
                 ))}
-                <td className="px-4 py-4 text-center">
+                <td className="px-4 py-4 text-center bg-blue-50">
                   <div className="space-y-1">
                     {getStatusBadge(getCurrentStockStatus(item))}
                     <div className="text-xs font-mono text-gray-600">
