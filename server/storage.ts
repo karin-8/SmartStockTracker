@@ -11,6 +11,8 @@ import {
   type DashboardMetrics,
   type InventoryItemWithForecast
 } from "@shared/schema";
+import { getDatabase, testConnection } from "./database";
+import { eq, desc, and, gte, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Inventory Items
@@ -452,4 +454,399 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// PostgreSQL Storage Implementation
+export class PostgreSQLStorage implements IStorage {
+  private fallbackStorage: MemStorage;
+
+  constructor() {
+    this.fallbackStorage = new MemStorage();
+  }
+
+  private async getDatabaseConnection() {
+    const { db, isConnected } = getDatabase();
+    return { db, isConnected };
+  }
+
+  async getInventoryItems(): Promise<InventoryItem[]> {
+    const { db, isConnected } = await this.getDatabaseConnection();
+    
+    if (!isConnected || !db) {
+      console.log('📦 Using fallback storage for inventory items');
+      return this.fallbackStorage.getInventoryItems();
+    }
+
+    try {
+      const items = await db.select().from(inventoryItems);
+      return items;
+    } catch (error) {
+      console.error('Database query failed, using fallback:', error);
+      return this.fallbackStorage.getInventoryItems();
+    }
+  }
+
+  async getInventoryItem(id: number): Promise<InventoryItem | undefined> {
+    const { db, isConnected } = await this.getDatabaseConnection();
+    
+    if (!isConnected || !db) {
+      return this.fallbackStorage.getInventoryItem(id);
+    }
+
+    try {
+      const items = await db.select().from(inventoryItems).where(eq(inventoryItems.id, id)).limit(1);
+      return items[0];
+    } catch (error) {
+      console.error('Database query failed, using fallback:', error);
+      return this.fallbackStorage.getInventoryItem(id);
+    }
+  }
+
+  async createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem> {
+    const { db, isConnected } = await this.getDatabaseConnection();
+    
+    if (!isConnected || !db) {
+      return this.fallbackStorage.createInventoryItem(item);
+    }
+
+    try {
+      const created = await db.insert(inventoryItems).values(item).returning();
+      return created[0];
+    } catch (error) {
+      console.error('Database insert failed, using fallback:', error);
+      return this.fallbackStorage.createInventoryItem(item);
+    }
+  }
+
+  async updateInventoryItem(id: number, updates: Partial<InsertInventoryItem>): Promise<InventoryItem> {
+    const { db, isConnected } = await this.getDatabaseConnection();
+    
+    if (!isConnected || !db) {
+      return this.fallbackStorage.updateInventoryItem(id, updates);
+    }
+
+    try {
+      const updated = await db.update(inventoryItems)
+        .set(updates)
+        .where(eq(inventoryItems.id, id))
+        .returning();
+      return updated[0];
+    } catch (error) {
+      console.error('Database update failed, using fallback:', error);
+      return this.fallbackStorage.updateInventoryItem(id, updates);
+    }
+  }
+
+  async getDemandHistory(itemId: number, days?: number): Promise<DemandHistory[]> {
+    const { db, isConnected } = await this.getDatabaseConnection();
+    
+    if (!isConnected || !db) {
+      return this.fallbackStorage.getDemandHistory(itemId, days);
+    }
+
+    try {
+      let query = db.select().from(demandHistory)
+        .where(eq(demandHistory.itemId, itemId))
+        .orderBy(desc(demandHistory.date));
+
+      if (days) {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - days);
+        query = db.select().from(demandHistory)
+          .where(and(
+            eq(demandHistory.itemId, itemId),
+            gte(demandHistory.date, cutoffDate)
+          ))
+          .orderBy(desc(demandHistory.date));
+      }
+
+      const history = await query;
+      return history;
+    } catch (error) {
+      console.error('Database query failed, using fallback:', error);
+      return this.fallbackStorage.getDemandHistory(itemId, days);
+    }
+  }
+
+  async addDemandHistory(demand: InsertDemandHistory): Promise<DemandHistory> {
+    const { db, isConnected } = await this.getDatabaseConnection();
+    
+    if (!isConnected || !db) {
+      return this.fallbackStorage.addDemandHistory(demand);
+    }
+
+    try {
+      const created = await db.insert(demandHistory).values(demand).returning();
+      return created[0];
+    } catch (error) {
+      console.error('Database insert failed, using fallback:', error);
+      return this.fallbackStorage.addDemandHistory(demand);
+    }
+  }
+
+  async getOrders(): Promise<Order[]> {
+    const { db, isConnected } = await this.getDatabaseConnection();
+    
+    if (!isConnected || !db) {
+      return this.fallbackStorage.getOrders();
+    }
+
+    try {
+      const ordersList = await db.select().from(orders).orderBy(desc(orders.orderDate));
+      return ordersList;
+    } catch (error) {
+      console.error('Database query failed, using fallback:', error);
+      return this.fallbackStorage.getOrders();
+    }
+  }
+
+  async createOrder(order: InsertOrder): Promise<Order> {
+    const { db, isConnected } = await this.getDatabaseConnection();
+    
+    if (!isConnected || !db) {
+      return this.fallbackStorage.createOrder(order);
+    }
+
+    try {
+      const created = await db.insert(orders).values(order).returning();
+      return created[0];
+    } catch (error) {
+      console.error('Database insert failed, using fallback:', error);
+      return this.fallbackStorage.createOrder(order);
+    }
+  }
+
+  async updateOrderStatus(id: number, status: string): Promise<Order> {
+    const { db, isConnected } = await this.getDatabaseConnection();
+    
+    if (!isConnected || !db) {
+      return this.fallbackStorage.updateOrderStatus(id, status);
+    }
+
+    try {
+      const updated = await db.update(orders)
+        .set({ status })
+        .where(eq(orders.id, id))
+        .returning();
+      return updated[0];
+    } catch (error) {
+      console.error('Database update failed, using fallback:', error);
+      return this.fallbackStorage.updateOrderStatus(id, status);
+    }
+  }
+
+  async getDashboardMetrics(): Promise<DashboardMetrics> {
+    const { db, isConnected } = await this.getDatabaseConnection();
+    
+    if (!isConnected || !db) {
+      return this.fallbackStorage.getDashboardMetrics();
+    }
+
+    try {
+      // Get inventory metrics
+      const items = await db.select().from(inventoryItems);
+      const ordersList = await db.select().from(orders);
+      
+      const totalItems = items.length;
+      const lowStockItems = items.filter(item => item.currentStock <= item.reorderPoint).length;
+      const totalValue = items.reduce((sum, item) => sum + (item.currentStock * item.unitCost), 0);
+      const pendingOrders = ordersList.filter(order => order.status === "pending").length;
+      
+      // Calculate turnover rate (simplified)
+      const demands = await db.select().from(demandHistory);
+      const totalDemand = demands.reduce((sum, d) => sum + d.quantity, 0);
+      const avgStock = items.reduce((sum, item) => sum + item.currentStock, 0) / items.length;
+      const turnoverRate = totalDemand / (avgStock * 30) * 365; // Annualized
+      
+      // Calculate stockout frequency (simplified)
+      const stockoutFrequency = (lowStockItems / totalItems) * 100;
+      
+      return {
+        totalItems,
+        lowStockItems,
+        totalValue,
+        pendingOrders,
+        turnoverRate,
+        stockoutFrequency
+      };
+    } catch (error) {
+      console.error('Database query failed, using fallback:', error);
+      return this.fallbackStorage.getDashboardMetrics();
+    }
+  }
+
+  async getInventoryWithForecast(): Promise<InventoryItemWithForecast[]> {
+    const { db, isConnected } = await this.getDatabaseConnection();
+    
+    if (!isConnected || !db) {
+      return this.fallbackStorage.getInventoryWithForecast();
+    }
+
+    try {
+      const items = await db.select().from(inventoryItems);
+      const demands = await db.select().from(demandHistory);
+      
+      return items.map(item => {
+        const itemDemands = demands.filter(d => d.itemId === item.id);
+        const weeklyDemand = this.calculateWeeklyDemand(itemDemands);
+        const demandVariability = this.calculateDemandVariability(itemDemands);
+        const forecast = this.generateForecast(item, itemDemands);
+        const stockStatus = this.generateStockStatus(item, forecast);
+        const aiInsights = this.generateAIInsights(item, stockStatus, weeklyDemand);
+        
+        return {
+          ...item,
+          forecast,
+          weeklyDemand,
+          demandVariability,
+          stockStatus,
+          aiInsights
+        };
+      });
+    } catch (error) {
+      console.error('Database query failed, using fallback:', error);
+      return this.fallbackStorage.getInventoryWithForecast();
+    }
+  }
+
+  // Helper methods (reuse the same logic from MemStorage)
+  private calculateWeeklyDemand(demands: DemandHistory[]): number {
+    if (demands.length === 0) return 0;
+    
+    // Group demands by week and calculate average
+    const weeklyTotals = new Map<string, number>();
+    
+    demands.forEach(demand => {
+      const weekKey = this.getWeekKey(demand.date);
+      weeklyTotals.set(weekKey, (weeklyTotals.get(weekKey) || 0) + demand.quantity);
+    });
+    
+    const totalWeeklyDemand = Array.from(weeklyTotals.values()).reduce((sum, total) => sum + total, 0);
+    return weeklyTotals.size > 0 ? totalWeeklyDemand / weeklyTotals.size : 0;
+  }
+
+  private calculateDemandVariability(demands: DemandHistory[]): number {
+    if (demands.length < 2) return 0;
+    
+    const weeklyTotals = new Map<string, number>();
+    demands.forEach(demand => {
+      const weekKey = this.getWeekKey(demand.date);
+      weeklyTotals.set(weekKey, (weeklyTotals.get(weekKey) || 0) + demand.quantity);
+    });
+    
+    const values = Array.from(weeklyTotals.values());
+    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+    return Math.sqrt(variance);
+  }
+
+  private getWeekKey(date: Date): string {
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - date.getDay());
+    return startOfWeek.toISOString().split('T')[0];
+  }
+
+  private generateForecast(item: InventoryItem, demands: DemandHistory[]): number[] {
+    const weeklyDemand = this.calculateWeeklyDemand(demands);
+    const forecast = [];
+    
+    // Generate 8 weeks of forecast
+    for (let week = 1; week <= 8; week++) {
+      // Add some realistic variation (±20%)
+      const variation = (Math.random() - 0.5) * 0.4;
+      const forecastValue = Math.max(0, weeklyDemand * (1 + variation));
+      forecast.push(Math.round(forecastValue));
+    }
+    
+    return forecast;
+  }
+
+  private generateStockStatus(item: InventoryItem, forecast: number[]): Array<{
+    week: number;
+    weekStartDate: string;
+    weekEndDate: string;
+    status: "enough" | "low" | "order";
+    projectedStock: number;
+    isHistorical: boolean;
+  }> {
+    const stockStatus = [];
+    let currentStock = item.currentStock;
+    const today = new Date();
+    
+    // Generate 4 weeks of historical data first
+    for (let week = -4; week < 0; week++) {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() + (week * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      
+      // Simulate historical stock levels
+      const historicalStock = Math.max(0, currentStock + (Math.random() * 20 - 10));
+      
+      stockStatus.push({
+        week: week + 5, // Adjust week numbering
+        weekStartDate: weekStart.toISOString().split('T')[0],
+        weekEndDate: weekEnd.toISOString().split('T')[0],
+        status: historicalStock <= item.reorderPoint ? "low" as const : "enough" as const,
+        projectedStock: Math.round(historicalStock),
+        isHistorical: true
+      });
+    }
+    
+    // Generate forecast weeks
+    for (let week = 0; week < 8; week++) {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() + (week * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      
+      currentStock -= forecast[week] || 0;
+      
+      let status: "enough" | "low" | "order" = "enough";
+      if (currentStock <= 0) {
+        status = "order";
+      } else if (currentStock <= item.reorderPoint) {
+        status = "low";
+      }
+      
+      stockStatus.push({
+        week: week + 1,
+        weekStartDate: weekStart.toISOString().split('T')[0],
+        weekEndDate: weekEnd.toISOString().split('T')[0],
+        status,
+        projectedStock: Math.max(0, Math.round(currentStock)),
+        isHistorical: false
+      });
+    }
+    
+    return stockStatus;
+  }
+
+  private generateAIInsights(item: InventoryItem, stockStatus: any[], weeklyDemand: number): string[] {
+    const insights = [];
+    
+    const lowStockWeeks = stockStatus.filter(s => s.status === "low" && !s.isHistorical).length;
+    const orderWeeks = stockStatus.filter(s => s.status === "order" && !s.isHistorical).length;
+    
+    if (orderWeeks > 0) {
+      insights.push(`Critical: Stock will run out in ${orderWeeks} week(s). Order immediately.`);
+    } else if (lowStockWeeks > 2) {
+      insights.push(`Warning: Low stock predicted for ${lowStockWeeks} weeks. Consider reordering.`);
+    }
+    
+    if (weeklyDemand > item.currentStock / 2) {
+      insights.push("High demand detected. Monitor closely for stockouts.");
+    }
+    
+    const turnoverWeeks = item.currentStock / Math.max(weeklyDemand, 1);
+    if (turnoverWeeks > 12) {
+      insights.push("Slow-moving inventory detected. Consider promotions or discounts.");
+    }
+    
+    if (insights.length === 0) {
+      insights.push("Stock levels appear healthy for the forecast period.");
+    }
+    
+    return insights;
+  }
+}
+
+// Storage classes are exported for dynamic initialization

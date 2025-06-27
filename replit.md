@@ -6,7 +6,8 @@ A full-stack inventory management system with demand forecasting, stock optimiza
 ## Project Architecture
 - **Frontend**: React with TypeScript, Wouter routing, shadcn/ui components
 - **Backend**: Express.js with TypeScript
-- **Data**: In-memory storage with sample inventory data
+- **Database**: PostgreSQL with Drizzle ORM, automatic fallback to in-memory storage
+- **Data**: Smart storage system with environment-based configuration
 - **Charts**: Chart.js for stock level visualization
 - **Export**: jsPDF and xlsx for order exports
 
@@ -21,6 +22,14 @@ A full-stack inventory management system with demand forecasting, stock optimiza
 - PDF and Excel export functionality
 
 ## Recent Changes
+**2025-06-27**: Database Configuration & Fallback System
+- Refactored to support PostgreSQL with automatic in-memory fallback
+- Added environment variable configuration for DATABASE_URL
+- Implemented PostgreSQLStorage class with graceful error handling
+- Created smart storage factory that chooses between database and memory storage
+- Added comprehensive logging for database connection status
+- Updated project documentation and setup instructions
+
 **2025-06-26**: Updated metrics and forecast display
 - Changed "Items" to "SKU" in metrics cards
 - Modified forecast from 12 weeks to 8 weeks future + 4 weeks historical

@@ -1,8 +1,27 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { MemStorage, PostgreSQLStorage, type IStorage } from "./storage";
+import { getDatabase } from "./database";
 import { insertInventoryItemSchema, insertOrderSchema } from "@shared/schema";
 import { z } from "zod";
+
+// Initialize storage dynamically
+function getStorage(): IStorage {
+  const { isConnected, error } = getDatabase();
+  
+  if (isConnected) {
+    console.log('🗄️  Using PostgreSQL database storage');
+    return new PostgreSQLStorage();
+  } else {
+    console.log('📦 Using in-memory storage (fallback mode)');
+    if (error) {
+      console.log(`   Reason: ${error}`);
+    }
+    return new MemStorage();
+  }
+}
+
+const storage = getStorage();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get all inventory items
