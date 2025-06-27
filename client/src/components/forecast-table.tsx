@@ -106,6 +106,20 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
     statusFilter !== "all" ||
     supplierFilter !== "all";
 
+  const getCurrentStockStatus = (item: InventoryItemWithForecast): "enough" | "low" | "order" => {
+    const currentStock = item.currentStock;
+    const reorderPoint = item.reorderPoint;
+    const safetyStock = item.safetyStock;
+    
+    if (currentStock <= safetyStock) {
+      return "order";
+    } else if (currentStock <= reorderPoint) {
+      return "low";
+    } else {
+      return "enough";
+    }
+  };
+
   const getStatusBadge = (status: "enough" | "low" | "order") => {
     switch (status) {
       case "enough":
@@ -327,8 +341,8 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
                       <div className="text-xs text-gray-400">
                         {item.supplier} • {item.category}
                       </div>
-                      <div className="text-xs text-gray-500">
-                        ROP: {item.reorderPoint}
+                      <div className="text-xs text-gray-500 font-medium">
+                        Reordering Point: {item.reorderPoint}
                       </div>
                     </div>
                   </div>
@@ -344,9 +358,12 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
                   </td>
                 ))}
                 <td className="px-4 py-4 text-center">
-                  <span className="font-mono text-sm font-medium text-gray-900">
-                    {item.currentStock}
-                  </span>
+                  <div className="space-y-1">
+                    {getStatusBadge(getCurrentStockStatus(item))}
+                    <div className="text-xs font-mono text-gray-600">
+                      {item.currentStock}
+                    </div>
+                  </div>
                 </td>
                 {item.stockStatus.slice(4).map((status, index) => (
                   <td key={`future-${index}`} className="px-3 py-4 text-center">
