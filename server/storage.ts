@@ -222,6 +222,9 @@ export class MemStorage implements IStorage {
     const status = [];
     const weeklyDemand = this.calculateWeeklyDemand(this.demandHistory.get(item.id) || []);
     
+    // First, calculate all projected stock levels
+    const allWeeks = [];
+    
     // Generate 4 historical weeks
     for (let i = -4; i < 0; i++) {
       const weekStart = new Date();
@@ -233,22 +236,10 @@ export class MemStorage implements IStorage {
       const weeksFromNow = Math.abs(i);
       const historicalStock = item.currentStock + (weeklyDemand * weeksFromNow);
       
-      let statusValue: "enough" | "low" | "order";
-      if (historicalStock <= 0) {
-        statusValue = "order";
-      } else if (historicalStock <= item.reorderPoint) {
-        statusValue = "order";
-      } else if (historicalStock <= item.reorderPoint * 1.5) {
-        statusValue = "low";
-      } else {
-        statusValue = "enough";
-      }
-      
-      status.push({
+      allWeeks.push({
         week: i + 5, // Week -3, -2, -1, 0 become weeks 1, 2, 3, 4
         weekStartDate: weekStart.toISOString().split('T')[0],
         weekEndDate: weekEnd.toISOString().split('T')[0],
-        status: statusValue,
         projectedStock: Math.max(0, Math.floor(historicalStock)),
         isHistorical: true
       });
@@ -263,24 +254,36 @@ export class MemStorage implements IStorage {
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
       
-      let statusValue: "enough" | "low" | "order";
-      if (projectedStock <= 0) {
-        statusValue = "order";
-      } else if (projectedStock <= item.reorderPoint) {
-        statusValue = "order";
-      } else if (projectedStock <= item.reorderPoint * 1.5) {
-        statusValue = "low";
-      } else {
-        statusValue = "enough";
-      }
-      
-      status.push({
+      allWeeks.push({
         week: i + 5, // Weeks 5-12
         weekStartDate: weekStart.toISOString().split('T')[0],
         weekEndDate: weekEnd.toISOString().split('T')[0],
-        status: statusValue,
         projectedStock: Math.max(0, projectedStock),
         isHistorical: false
+      });
+    }
+    
+    // Now determine status based on "low is one week before order"
+    for (let i = 0; i < allWeeks.length; i++) {
+      const currentWeek = allWeeks[i];
+      let statusValue: "enough" | "low" | "order";
+      
+      // Check if current week should be "order"
+      if (currentWeek.projectedStock <= 0 || currentWeek.projectedStock <= item.reorderPoint) {
+        statusValue = "order";
+      } else {
+        // Check if next week would be "order" - if so, this week is "low"
+        const nextWeek = allWeeks[i + 1];
+        if (nextWeek && (nextWeek.projectedStock <= 0 || nextWeek.projectedStock <= item.reorderPoint)) {
+          statusValue = "low";
+        } else {
+          statusValue = "enough";
+        }
+      }
+      
+      status.push({
+        ...currentWeek,
+        status: statusValue
       });
     }
     
@@ -754,8 +757,11 @@ export class PostgreSQLStorage implements IStorage {
     isHistorical: boolean;
   }> {
     const stockStatus = [];
-    let currentStock = item.currentStock;
+    const weeklyDemand = this.calculateWeeklyDemand([]);
     const today = new Date();
+    
+    // First, calculate all projected stock levels
+    const allWeeks = [];
     
     // Generate 4 weeks of historical data first
     for (let week = -4; week < 0; week++) {
@@ -764,20 +770,21 @@ export class PostgreSQLStorage implements IStorage {
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
       
-      // Simulate historical stock levels
-      const historicalStock = Math.max(0, currentStock + (Math.random() * 20 - 10));
+      // Calculate historical stock based on current stock + projected consumption
+      const weeksFromNow = Math.abs(week);
+      const historicalStock = item.currentStock + (weeklyDemand * weeksFromNow);
       
-      stockStatus.push({
+      allWeeks.push({
         week: week + 5, // Adjust week numbering
         weekStartDate: weekStart.toISOString().split('T')[0],
         weekEndDate: weekEnd.toISOString().split('T')[0],
-        status: historicalStock <= item.reorderPoint ? "low" as const : "enough" as const,
-        projectedStock: Math.round(historicalStock),
+        projectedStock: Math.max(0, Math.round(historicalStock)),
         isHistorical: true
       });
     }
     
     // Generate forecast weeks
+    let currentStock = item.currentStock;
     for (let week = 0; week < 8; week++) {
       const weekStart = new Date(today);
       weekStart.setDate(today.getDate() + (week * 7));
@@ -786,20 +793,36 @@ export class PostgreSQLStorage implements IStorage {
       
       currentStock -= forecast[week] || 0;
       
-      let status: "enough" | "low" | "order" = "enough";
-      if (currentStock <= 0) {
-        status = "order";
-      } else if (currentStock <= item.reorderPoint) {
-        status = "low";
+      allWeeks.push({
+        week: week + 5, // Weeks 5-12
+        weekStartDate: weekStart.toISOString().split('T')[0],
+        weekEndDate: weekEnd.toISOString().split('T')[0],
+        projectedStock: Math.max(0, Math.round(currentStock)),
+        isHistorical: false
+      });
+    }
+    
+    // Now determine status based on "low is one week before order"
+    for (let i = 0; i < allWeeks.length; i++) {
+      const currentWeek = allWeeks[i];
+      let statusValue: "enough" | "low" | "order";
+      
+      // Check if current week should be "order"
+      if (currentWeek.projectedStock <= 0 || currentWeek.projectedStock <= item.reorderPoint) {
+        statusValue = "order";
+      } else {
+        // Check if next week would be "order" - if so, this week is "low"
+        const nextWeek = allWeeks[i + 1];
+        if (nextWeek && (nextWeek.projectedStock <= 0 || nextWeek.projectedStock <= item.reorderPoint)) {
+          statusValue = "low";
+        } else {
+          statusValue = "enough";
+        }
       }
       
       stockStatus.push({
-        week: week + 1,
-        weekStartDate: weekStart.toISOString().split('T')[0],
-        weekEndDate: weekEnd.toISOString().split('T')[0],
-        status,
-        projectedStock: Math.max(0, Math.round(currentStock)),
-        isHistorical: false
+        ...currentWeek,
+        status: statusValue
       });
     }
     

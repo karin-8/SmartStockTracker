@@ -109,15 +109,20 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
   const getCurrentStockStatus = (item: InventoryItemWithForecast): "enough" | "low" | "order" => {
     const currentStock = item.currentStock;
     const reorderPoint = item.reorderPoint;
-    const safetyStock = item.safetyStock;
     
-    if (currentStock <= safetyStock) {
+    // Check if current stock should be "order"
+    if (currentStock <= 0 || currentStock <= reorderPoint) {
       return "order";
-    } else if (currentStock <= reorderPoint) {
-      return "low";
-    } else {
-      return "enough";
     }
+    
+    // Check if next week would be "order" by looking at the next forecast week
+    // If the first future forecast week has "order" status, current should be "low"
+    const nextWeekStatus = item.stockStatus.find(s => !s.isHistorical);
+    if (nextWeekStatus && nextWeekStatus.status === "order") {
+      return "low";
+    }
+    
+    return "enough";
   };
 
   const getStatusBadge = (status: "enough" | "low" | "order") => {
