@@ -1,27 +1,29 @@
-import { drizzle } from 'drizzle-orm/neon-http';
-import { neon } from '@neondatabase/serverless';
-import type { NeonHttpDatabase } from 'drizzle-orm/neon-http';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import dotenv from 'dotenv';
 import * as schema from '@shared/schema';
 
-let db: NeonHttpDatabase<typeof schema> | null = null;
+dotenv.config();
+
+let db: ReturnType<typeof drizzle> | null = null;
 let isConnected = false;
 let connectionError: string | null = null;
 
-export function initializeDatabase(): { db: NeonHttpDatabase<typeof schema> | null; isConnected: boolean; error: string | null } {
+export function initializeDatabase() {
   try {
     const databaseUrl = process.env.DATABASE_URL;
     
     if (!databaseUrl) {
-      console.warn('⚠️  DATABASE_URL environment variable not found. Falling back to in-memory storage.');
+      console.warn('⚠️ DATABASE_URL environment variable not found. Falling back to in-memory storage.');
       connectionError = 'DATABASE_URL environment variable not set';
       return { db: null, isConnected: false, error: connectionError };
     }
 
-    const sql = neon(databaseUrl);
-    db = drizzle(sql, { schema });
+    const pool = new Pool({ connectionString: databaseUrl });
+    db = drizzle(pool, { schema });
     isConnected = true;
     connectionError = null;
-    
+
     console.log('✅ PostgreSQL database connection established');
     return { db, isConnected, error: null };
   } catch (error) {
@@ -44,7 +46,7 @@ export async function testConnection(): Promise<boolean> {
   try {
     const { db } = getDatabase();
     if (!db) return false;
-    
+
     // Simple query to test connection
     await db.select().from(schema.inventoryItems).limit(1);
     return true;

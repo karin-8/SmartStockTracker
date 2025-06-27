@@ -1,37 +1,55 @@
-import { pgTable, text, serial, integer, real, timestamp } from "drizzle-orm/pg-core";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const inventoryItems = pgTable("inventory_items", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  sku: text("sku").notNull().unique(),
-  currentStock: integer("current_stock").notNull(),
-  reorderPoint: integer("reorder_point").notNull(),
-  safetyStock: integer("safety_stock").notNull(),
-  unitCost: real("unit_cost").notNull(),
-  leadTimeDays: integer("lead_time_days").notNull(),
-  category: text("category").notNull(),
-  supplier: text("supplier").notNull(),
-  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
-});
+export const inventoryItems = pgTable(
+  "app_inventory_items",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    sku: text("sku").notNull().unique(),
+    currentStock: integer("current_stock").notNull(),
+    reorderPoint: integer("reorder_point").notNull(),
+    safetyStock: integer("safety_stock").notNull(),
+    unitCost: real("unit_cost").notNull(),
+    leadTimeDays: integer("lead_time_days").notNull(),
+    category: text("category").notNull(),
+    supplier: text("supplier").notNull(),
+    lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+  },
+  {
+    schema: "themall_poc",
+  }
+);
 
-export const demandHistory = pgTable("demand_history", {
-  id: serial("id").primaryKey(),
-  itemId: integer("item_id").notNull().references(() => inventoryItems.id),
-  date: timestamp("date").notNull(),
-  quantity: integer("quantity").notNull(),
-});
+export const demandHistory = pgTable(
+  "app_demand_history",
+  {
+    id: serial("id").primaryKey(),
+    itemId: integer("item_id").notNull().references(() => inventoryItems.id),
+    date: timestamp("date").notNull(),
+    quantity: integer("quantity").notNull(),
+  },
+  {
+    schema: "themall_poc",
+  }
+);
 
-export const orders = pgTable("orders", {
-  id: serial("id").primaryKey(),
-  itemId: integer("item_id").notNull().references(() => inventoryItems.id),
-  quantity: integer("quantity").notNull(),
-  status: text("status").notNull().default("pending"),
-  orderDate: timestamp("order_date").defaultNow().notNull(),
-  expectedDeliveryDate: timestamp("expected_delivery_date"),
-  cost: real("cost").notNull(),
-});
+export const orders = pgTable(
+  "app_orders",
+  {
+    id: serial("id").primaryKey(),
+    itemId: integer("item_id").notNull().references(() => inventoryItems.id),
+    quantity: integer("quantity").notNull(),
+    status: text("status").notNull().default("pending"),
+    orderDate: timestamp("order_date").defaultNow().notNull(),
+    expectedDeliveryDate: timestamp("expected_delivery_date"),
+    cost: real("cost").notNull(),
+  },
+  {
+    schema: "themall_poc",
+  }
+);
 
 export const insertInventoryItemSchema = createInsertSchema(inventoryItems).omit({
   id: true,
