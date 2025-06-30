@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Package, ArrowRight, Filter, Download, X } from "lucide-react";
+import { Package, Filter, Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +21,12 @@ import type { InventoryItemWithForecast } from "@shared/schema";
 interface ForecastTableProps {
   inventory?: InventoryItemWithForecast[];
   isLoading: boolean;
+}
+
+function determineStatus(stock: number, reorderPoint: number, nextStock?: number): "enough" | "low" | "order" {
+  if (stock <= 0 || stock <= reorderPoint) return "order";
+  if (nextStock !== undefined && (nextStock <= 0 || nextStock <= reorderPoint)) return "low";
+  return "enough";
 }
 
 export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
@@ -58,10 +64,8 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
   const suppliers = Array.from(supplierSet);
 
   const filteredInventory = inventory.filter((item) => {
-    const categoryMatch =
-      categoryFilter === "all" || item.category === categoryFilter;
-    const supplierMatch =
-      supplierFilter === "all" || item.supplier === supplierFilter;
+    const categoryMatch = categoryFilter === "all" || item.category === categoryFilter;
+    const supplierMatch = supplierFilter === "all" || item.supplier === supplierFilter;
 
     let statusMatch = true;
     if (statusFilter === "critical") {
@@ -76,23 +80,31 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
   });
 
   const adjustedInventory = filteredInventory.map((item) => {
-    const updatedStockStatus = [...item.stockStatus];
-    const firstOrderIndex = updatedStockStatus.findIndex(
-      (s) => s.status === "order",
-    );
-
-    if (firstOrderIndex > 0) {
-      for (let i = 0; i < firstOrderIndex; i++) {
-        updatedStockStatus[i].status = "enough";
-      }
-      updatedStockStatus[firstOrderIndex - 1].status = "low";
-    }
+    const updatedStockStatus = item.stockStatus.map((status, index, array) => {
+      const next = array[index + 1];
+      const statusLabel = determineStatus(
+        status.projectedStock,
+        item.reorderPoint,
+        next?.projectedStock
+      );
+      return { ...status, status: statusLabel };
+    });
 
     return { ...item, stockStatus: updatedStockStatus };
   });
 
+
+  const getCurrentStockStatus = (item: InventoryItemWithForecast): "enough" | "low" | "order" => {
+    const nextForecast = item.stockStatus.find((s) => !s.isHistorical);
+    console.log(
+      `Item: ${item.name}, CurrentStock: ${item.currentStock}, NextWeek: ${nextForecast?.projectedStock}, ReorderPoint: ${item.reorderPoint}`
+    );
+    return determineStatus(item.currentStock, item.reorderPoint, nextForecast?.projectedStock);
+  };
+
+
   const handleExport = () => {
-    exportInventorySummary(filteredInventory);
+    exportInventorySummary(adjustedInventory);
   };
 
   const clearFilters = () => {
@@ -106,35 +118,12 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
     statusFilter !== "all" ||
     supplierFilter !== "all";
 
-  const getCurrentStockStatus = (item: InventoryItemWithForecast): "enough" | "low" | "order" => {
-    const currentStock = item.currentStock;
-    const reorderPoint = item.reorderPoint;
-    
-    // Check if current stock should be "order"
-    if (currentStock <= 0 || currentStock <= reorderPoint) {
-      return "order";
-    }
-    
-    // Check if next week would be "order" by looking at the next forecast week
-    // If the first future forecast week has "order" status, current should be "low"
-    const nextWeekStatus = item.stockStatus.find(s => !s.isHistorical);
-    if (nextWeekStatus && nextWeekStatus.status === "order") {
-      return "low";
-    }
-    
-    return "enough";
-  };
-
   const getStatusBadge = (status: "enough" | "low" | "order") => {
     switch (status) {
       case "enough":
-        return (
-          <Badge className="bg-green-100 text-green-800 text-xs">Enough</Badge>
-        );
+        return <Badge className="bg-green-100 text-green-800 text-xs">Enough</Badge>;
       case "low":
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800 text-xs">Low</Badge>
-        );
+        return <Badge className="bg-yellow-100 text-yellow-800 text-xs">Low</Badge>;
       case "order":
         return <Badge className="bg-red-100 text-red-800 text-xs">Order</Badge>;
     }
@@ -180,8 +169,7 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
               8-Week Stock Forecast
             </h3>
             <p className="text-sm text-gray-600 mt-1">
-              4 weeks historical + 8 weeks forecast • Showing{" "}
-              {adjustedInventory.length} of {inventory.length} items
+              4 weeks historical + 8 weeks forecast • Showing {adjustedInventory.length} of {inventory.length} items
             </p>
           </div>
           <div className="flex items-center space-x-2 mt-4 sm:mt-0">
@@ -190,9 +178,7 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={
-                    hasActiveFilters ? "bg-blue-50 border-blue-200" : ""
-                  }
+                  className={hasActiveFilters ? "bg-blue-50 border-blue-200" : ""}
                 >
                   <Filter className="w-4 h-4 mr-1" />
                   Filter
@@ -206,29 +192,17 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
               <PopoverContent className="w-80 p-4" align="end">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-gray-900">
-                      Filter Options
-                    </h4>
+                    <h4 className="font-medium text-gray-900">Filter Options</h4>
                     {hasActiveFilters && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearFilters}
-                        className="text-xs"
-                      >
+                      <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs">
                         <X className="w-3 h-3 mr-1" /> Clear
                       </Button>
                     )}
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-2">
-                      Category
-                    </label>
-                    <Select
-                      value={categoryFilter}
-                      onValueChange={setCategoryFilter}
-                    >
+                    <label className="text-sm font-medium text-gray-700 block mb-2">Category</label>
+                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                       <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
@@ -244,21 +218,14 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-2">
-                      Status
-                    </label>
-                    <Select
-                      value={statusFilter}
-                      onValueChange={setStatusFilter}
-                    >
+                    <label className="text-sm font-medium text-gray-700 block mb-2">Status</label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
                       <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="critical">
-                          Critical (Order Now)
-                        </SelectItem>
+                        <SelectItem value="critical">Critical (Order Now)</SelectItem>
                         <SelectItem value="low">Low Stock</SelectItem>
                         <SelectItem value="ok">Stock OK</SelectItem>
                       </SelectContent>
@@ -266,13 +233,8 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-2">
-                      Supplier
-                    </label>
-                    <Select
-                      value={supplierFilter}
-                      onValueChange={setSupplierFilter}
-                    >
+                    <label className="text-sm font-medium text-gray-700 block mb-2">Supplier</label>
+                    <Select value={supplierFilter} onValueChange={setSupplierFilter}>
                       <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
@@ -301,31 +263,19 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
         <table className="w-full">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Item
-              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
               {[...Array(4)].map((_, i) => (
-                <th
-                  key={`past-${i}`}
-                  className="px-3 py-3 text-center text-xs font-medium text-gray-400 bg-gray-25 uppercase tracking-wider"
-                >
+                <th key={`past-${i}`} className="px-3 py-3 text-center text-xs font-medium text-gray-400 bg-gray-25 uppercase tracking-wider">
                   W-{4 - i}
                 </th>
               ))}
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">
-                Current
-              </th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50">Current</th>
               {[...Array(8)].map((_, i) => (
-                <th
-                  key={`future-${i}`}
-                  className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
+                <th key={`future-${i}`} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   W+{i + 1}
                 </th>
               ))}
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Action
-              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -337,18 +287,10 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
                       <Package className="text-gray-500 w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {item.name}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        SKU: {item.sku}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {item.supplier} • {item.category}
-                      </div>
-                      <div className="text-xs text-blue-600 font-semibold">
-                        Reordering Point: {item.reorderPoint}
-                      </div>
+                      <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                      <div className="text-sm text-gray-500">SKU: {item.sku}</div>
+                      <div className="text-xs text-gray-400">{item.supplier} • {item.category}</div>
+                      <div className="text-xs text-blue-600 font-semibold">Reordering Point: {item.reorderPoint}</div>
                     </div>
                   </div>
                 </td>
@@ -356,33 +298,25 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
                   <td key={`past-${index}`} className="px-3 py-4 text-center">
                     <div className="space-y-1">
                       {getStatusBadge(status.status)}
-                      <div className="text-xs font-mono text-gray-600">
-                        {status.projectedStock}
-                      </div>
+                      <div className="text-xs font-mono text-gray-600">{status.projectedStock}</div>
                     </div>
                   </td>
                 ))}
                 <td className="px-4 py-4 text-center bg-blue-50">
                   <div className="space-y-1">
                     {getStatusBadge(getCurrentStockStatus(item))}
-                    <div className="text-xs font-mono text-gray-600">
-                      {item.currentStock}
-                    </div>
+                    <div className="text-xs font-mono text-gray-600">{item.currentStock}</div>
                   </div>
                 </td>
                 {item.stockStatus.slice(4).map((status, index) => (
                   <td key={`future-${index}`} className="px-3 py-4 text-center">
                     <div className="space-y-1">
                       {getStatusBadge(status.status)}
-                      <div className="text-xs font-mono text-gray-600">
-                        {status.projectedStock}
-                      </div>
+                      <div className="text-xs font-mono text-gray-600">{status.projectedStock}</div>
                     </div>
                   </td>
                 ))}
-                <td className="px-6 py-4 text-right">
-                  {getActionButton(item)}
-                </td>
+                <td className="px-6 py-4 text-right">{getActionButton(item)}</td>
               </tr>
             ))}
           </tbody>
@@ -390,11 +324,7 @@ export function ForecastTable({ inventory, isLoading }: ForecastTableProps) {
         {adjustedInventory.length === 0 && (
           <div className="text-center py-8">
             <p className="text-gray-500">No items match the current filters</p>
-            <Button
-              variant="link"
-              onClick={clearFilters}
-              className="text-blue-600 mt-2"
-            >
+            <Button variant="link" onClick={clearFilters} className="text-blue-600 mt-2">
               Clear filters to see all items
             </Button>
           </div>
